@@ -57,13 +57,9 @@ func (g *NormalTaskGroup) RemoveSkuQuery(skuStr string) {
 	}
 }
 
-func (t *NormalTaskGroup) notifySize(productData *ProductData) {
-	t.webhookHandler.NotifyRestock(productData, t.availableSizes, t.price)
-}
+func (t *NormalTaskGroup) notifySize(productData *ProductData) {}
 
-func (t *NormalTaskGroup) notifyPrice(productData *ProductData, oldPrice string, newPrice string) {
-	t.webhookHandler.NotifyPrice(productData, t.availableSizes, oldPrice, newPrice)
-}
+func (t *NormalTaskGroup) notifyPrice(productData *ProductData, oldPrice string, newPrice string) {}
 
 func (g *NormalTaskGroup) AddTask(task *NormalTask) error {
 	if task.GetStatus() != StatusReady {
