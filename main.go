@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"math/rand"
 	"os"
 	"os/exec"
 	"strconv"
@@ -157,7 +156,7 @@ func main() {
 
 		err = loadTaskGroup.AddTask(loadTask)
 		if err != nil {
-			mainLogger.Red(fmt.Sprintf("Error adding normal task %s to task group: %v", taskName, err))
+			mainLogger.Red(fmt.Sprintf("Error adding load task %s to task group: %v", taskName, err))
 			return
 		}
 	}
@@ -169,35 +168,19 @@ func main() {
 	webhookHandler.Start()
 
 	// Launch tasks
-
-	// Start Load Monitor Tasks
-
-	for c := range config.LoadTask.NumTasks {
-		tasksWg.Add(1)
-
-		taskName := fmt.Sprintf(" LOAD : %02d", c+1)
-		loadTask, err := NewLoadTask(taskName, proxyHandler, webhookHandler, productStates.Load.SkuQueries, productStates.Load.KeywordQueries, productStates.Load.LastKnownPid)
-		if err != nil {
-			mainLogger.Red(fmt.Sprintf("Error creating initial load task: %v", err))
-			return
-		}
-
-		taskReferenceMu.Lock()
-		loadTasks = append(loadTasks, loadTask)
-		taskReferenceMu.Unlock()
-
-		go func() {
-			if config.LoadTask.BurstStart {
-				offsetMilliseconds := rand.Intn(config.LoadTask.Timeout)
-				time.Sleep(time.Millisecond * time.Duration(offsetMilliseconds))
-			}
-			loadTask.Start()
-
-			loadTask.WaitForTermination()
-
-			tasksWg.Done()
-		}()
+	err = normalTaskGroup.StartAllTasks()
+	if err != nil {
+		mainLogger.Red(fmt.Sprintf("Error starting normal tasks: %v", err))
+		return
 	}
+	defer normalTaskGroup.StopAllTasks()
+
+	err = loadTaskGroup.StartAllTasks()
+	if err != nil {
+		mainLogger.Red(fmt.Sprintf("Error starting load tasks: %v", err))
+		return
+	}
+	defer loadTaskGroup.StopAllTasks()
 
 	configMu.RUnlock()
 

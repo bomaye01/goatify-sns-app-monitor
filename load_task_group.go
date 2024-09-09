@@ -140,10 +140,6 @@ func (g *LoadTaskGroup) StartAllTasks() error {
 				time.Sleep(time.Millisecond * time.Duration(offsetMilliseconds))
 			}
 			task.Start()
-
-			task.WaitForTermination()
-
-			tasksWg.Done()
 		}()
 	}
 
@@ -152,7 +148,13 @@ func (g *LoadTaskGroup) StartAllTasks() error {
 
 func (g *LoadTaskGroup) StopAllTasks() {
 	for _, task := range g.loadTasks {
-		task.Stop()
+		go func() {
+			task.Stop()
+
+			task.WaitForTermination()
+
+			tasksWg.Done()
+		}()
 	}
 }
 
