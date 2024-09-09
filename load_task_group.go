@@ -1,23 +1,31 @@
 package main
 
 import (
+	"fmt"
 	"strings"
-	"sync"
 )
 
 type LoadTaskGroup struct {
-	mu              sync.Mutex
+	*BaseTaskGroup
 	skuQueryStrings []string
 	kwdQueryStrings []string
 	loadTasks       []*LoadTask
 }
 
-func NewLoadTaskGroup(skuQueryStrings []string, kwdQueryStrings []string, loadTasks []*LoadTask) *LoadTaskGroup {
-	return &LoadTaskGroup{
+func NewLoadTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandler, skuQueryStrings []string, kwdQueryStrings []string, normalTasks []*LoadTask) (*LoadTaskGroup, error) {
+	loadTaskGroup := &LoadTaskGroup{
 		skuQueryStrings: skuQueryStrings,
-		kwdQueryStrings: kwdQueryStrings,
 		loadTasks:       loadTasks,
 	}
+
+	baseTaskGroup, err := NewBaseTaskGroup(proxyHandler, webhookHandler)
+	if err != nil {
+		return nil, fmt.Errorf("error creating base task group: %v", err)
+	}
+
+	loadTaskGroup.BaseTaskGroup = baseTaskGroup
+
+	return loadTaskGroup, nil
 }
 
 func (g *LoadTaskGroup) AddSkuQuery(skuStr string) {
