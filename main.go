@@ -108,61 +108,69 @@ func main() {
 	proxyHandler = NewProxyHandler(proxies)
 	webhookHandler = NewWebhookHandler()
 
-	if proxyHandler == nil {
-		mainLogger.Red("Proxy handler nil")
-		return
-	}
-	if webhookHandler == nil {
-		mainLogger.Red("Webhook handler nil")
-		return
-	}
-
-	webhookHandler.Start()
-
-	// Start Normal Monitor Tasks
 	configMu.RLock()
+
+	// Create task groups
 	statesNormalMu.Lock()
+	statesLoadMu.Lock()
 
-	for c := range config.NormalTask.NumTasksPerProduct {
-		for i, productState := range productStates.Normal.Products {
-			tasksWg.Add(1)
+	normalTaskGroup, err := NewNormalTaskGroup(proxyHandler, webhookHandler, productStates.Normal.SKUs)
+	if err != nil {
+		mainLogger.Red(fmt.Sprintf("Error creating normal task group: %v", err))
+		return
+	}
 
-			taskCountMu.Lock()
-			normalTaskCount += 1
-			taskCountMu.Unlock()
+	loadTaskGroup, err := NewLoadTaskGroup(proxyHandler, webhookHandler, productStates.Load.LastKnownPid, productStates.Load.SkuQueries, productStates.Load.KeywordQueries)
+	if err != nil {
+		mainLogger.Red(fmt.Sprintf("Error creating normal task group: %v", err))
+		return
+	}
 
-			taskName := fmt.Sprintf("NORMAL: %02d", i+1+c*len(productStates.Normal.Products))
-			normalTask, err := NewNormalTask(taskName, productState.ProductPageUrl, productState.AvailableSizes, productState.Price, proxyHandler, webhookHandler)
-			if err != nil {
-				mainLogger.Red(fmt.Sprintf("Error creating initial normal task %s: %v", taskName, err))
-				return
-			}
+	// Create normal tasks
+	for i := range config.NormalTask.NumTasks {
+		tasksWg.Add(1)
 
-			taskReferenceMu.Lock()
-			normalTasksByProductUrl[normalTask.productPageUrl] = append(normalTasksByProductUrl[normalTask.productPageUrl], normalTask)
-			taskReferenceMu.Unlock()
+		taskName := fmt.Sprintf("NORMAL: %02d", i)
+		normalTask, err := NewNormalTask(taskName)
+		if err != nil {
+			mainLogger.Red(fmt.Sprintf("Error creating initial normal task %s: %v", taskName, err))
+			return
+		}
 
-			go func() {
-				if config.NormalTask.BurstStart {
-					offsetMilliseconds := rand.Intn(config.NormalTask.Timeout)
-					time.Sleep(time.Millisecond * time.Duration(offsetMilliseconds))
-				}
-				normalTask.Start()
-
-				normalTask.WaitForTermination()
-
-				tasksWg.Done()
-
-				taskCountMu.Lock()
-				normalTaskCount -= 1
-				taskCountMu.Unlock()
-			}()
+		err = normalTaskGroup.AddTask(normalTask)
+		if err != nil {
+			mainLogger.Red(fmt.Sprintf("Error adding normal task %s to task group: %v", taskName, err))
+			return
 		}
 	}
+
+	// Create load tasks
+	for i := range config.LoadTask.NumTasks {
+		tasksWg.Add(1)
+
+		taskName := fmt.Sprintf("NORMAL: %02d", i)
+		loadTask, err := NewLoadTask(taskName)
+		if err != nil {
+			mainLogger.Red(fmt.Sprintf("Error creating initial load task %s: %v", taskName, err))
+			return
+		}
+
+		err = loadTaskGroup.AddTask(loadTask)
+		if err != nil {
+			mainLogger.Red(fmt.Sprintf("Error adding normal task %s to task group: %v", taskName, err))
+			return
+		}
+	}
+
 	statesNormalMu.Unlock()
+	statesLoadMu.Unlock()
+
+	// Start webhook handler
+	webhookHandler.Start()
+
+	// Launch tasks
 
 	// Start Load Monitor Tasks
-	statesLoadMu.Lock()
 
 	for c := range config.LoadTask.NumTasks {
 		tasksWg.Add(1)
@@ -190,7 +198,6 @@ func main() {
 			tasksWg.Done()
 		}()
 	}
-	statesLoadMu.Unlock()
 
 	configMu.RUnlock()
 

@@ -2,6 +2,18 @@ package main
 
 import "fmt"
 
+type TaskNotReadyError struct{}
+
+func (e *TaskNotReadyError) Error() string {
+	return "task not ready"
+}
+
+type TaskRunningError struct{}
+
+func (e *TaskRunningError) Error() string {
+	return "task still running"
+}
+
 type RequestError struct {
 	location      string
 	err           error

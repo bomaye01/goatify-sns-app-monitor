@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"reflect"
+	"math/rand"
 	"strings"
+	"time"
 )
 
 type NormalTaskGroup struct {
@@ -12,10 +13,10 @@ type NormalTaskGroup struct {
 	normalTasks     []*NormalTask
 }
 
-func NewNormalTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandler, skuQueryStrings []string, normalTasks []*NormalTask) (*NormalTaskGroup, error) {
+func NewNormalTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandler, skuQueryStrings []string) (*NormalTaskGroup, error) {
 	normalTaskGroup := &NormalTaskGroup{
 		skuQueryStrings: skuQueryStrings,
-		normalTasks:     normalTasks,
+		normalTasks:     []*NormalTask{},
 	}
 
 	baseTaskGroup, err := NewBaseTaskGroup(proxyHandler, webhookHandler)
@@ -56,100 +57,77 @@ func (g *NormalTaskGroup) RemoveSkuQuery(skuStr string) {
 	}
 }
 
-func (t *NormalTask) getChangesToAvailable(knownAvailableSizes []string) []string {
-	sizesChangedToAvailable := []string{}
-
-	for _, currentAvailableSize := range t.availableSizes {
-		included := false
-
-		for _, knownAvailableSize := range knownAvailableSizes {
-			if knownAvailableSize == currentAvailableSize {
-				included = true
-				break
-			}
-		}
-
-		if !included {
-			sizesChangedToAvailable = append(sizesChangedToAvailable, currentAvailableSize)
-		}
-	}
-
-	return sizesChangedToAvailable
-}
-
-func (t *NormalTask) matchProductStates(productData *ProductData) bool {
-	statesNormalMu.Lock()
-	defer statesNormalMu.Unlock()
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	stateChange := false
-
-	notifySize := false
-	notifyPrice := false
-
-	newAvailableSizes := []string{}
-	oldPrice := ""
-
-	for _, productState := range productStates.Normal.ProductStates {
-		if productState.ProductPageUrl == t.productPageUrl {
-			if !reflect.DeepEqual(productState.AvailableSizes, t.availableSizes) {
-				stateChange = true
-
-				newAvailableSizes = t.getChangesToAvailable(productState.AvailableSizes)
-				if len(newAvailableSizes) != 0 {
-					notifySize = true
-				}
-
-				productState.AvailableSizes = t.availableSizes
-			}
-
-			if productState.Price != t.price {
-				stateChange = true
-
-				if t.price < productState.Price {
-					notifyPrice = true
-				}
-
-				oldPrice = productState.Price
-
-				productState.Price = t.price
-			}
-		}
-	}
-
-	// Console print
-	if notifySize && notifyPrice {
-		t.logger.Green(fmt.Sprintf("%s: New available sizes: %v | Price changed: %s -> %s", strings.Split(t.productPageUrl, "product/")[1], newAvailableSizes, oldPrice, t.price))
-	} else if notifyPrice {
-		if oldPrice > t.price {
-			t.logger.Green(fmt.Sprintf("%s: Price changed: %s -> %s", strings.Split(t.productPageUrl, "product/")[1], oldPrice, t.price))
-		} else {
-			t.logger.Gray(fmt.Sprintf("%s: Price changed: %s -> %s", strings.Split(t.productPageUrl, "product/")[1], oldPrice, t.price))
-		}
-	} else if notifySize {
-		t.logger.Green(fmt.Sprintf("%s: New available sizes: %v", strings.Split(t.productPageUrl, "product/")[1], newAvailableSizes))
-	} else {
-		t.logger.Gray(fmt.Sprintf("%s: No changes on product", strings.Split(t.productPageUrl, "product/")[1]))
-	}
-
-	// Webhook notify
-	if notifySize {
-		t.notifySize(productData)
-	}
-	if notifyPrice {
-		if oldPrice > t.price {
-			t.notifyPrice(productData, oldPrice, t.price)
-		}
-	}
-
-	return stateChange
-}
-
-func (t *NormalTask) notifySize(productData *ProductData) {
+func (t *NormalTaskGroup) notifySize(productData *ProductData) {
 	t.webhookHandler.NotifyRestock(productData, t.availableSizes, t.price)
 }
 
-func (t *NormalTask) notifyPrice(productData *ProductData, oldPrice string, newPrice string) {
+func (t *NormalTaskGroup) notifyPrice(productData *ProductData, oldPrice string, newPrice string) {
 	t.webhookHandler.NotifyPrice(productData, t.availableSizes, oldPrice, newPrice)
+}
+
+func (g *NormalTaskGroup) AddTask(task *NormalTask) error {
+	if task.GetStatus() != StatusReady {
+		return &TaskNotReadyError{}
+	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	g.normalTasks = append(g.normalTasks, task)
+
+	return nil
+}
+
+func (g *NormalTaskGroup) RemoveTask(task *NormalTask) error {
+	if task.GetStatus() == StatusRunning {
+		return &TaskRunningError{}
+	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	removeIndex := -1
+	for i, t := range g.normalTasks {
+		if t == task {
+			removeIndex = i
+			break
+		}
+	}
+	if removeIndex >= 0 {
+		g.normalTasks = append(g.normalTasks[:removeIndex], g.normalTasks[removeIndex+1:]...)
+	}
+
+	return nil
+}
+
+func (g *NormalTaskGroup) StartAllTasks() error {
+	for _, task := range g.normalTasks {
+		if task.GetStatus() != StatusReady {
+			return &TaskNotReadyError{}
+		}
+	}
+
+	for _, task := range g.normalTasks {
+		tasksWg.Add(1)
+
+		go func() {
+			if config.NormalTask.BurstStart {
+				offsetMilliseconds := rand.Intn(config.NormalTask.Timeout)
+				time.Sleep(time.Millisecond * time.Duration(offsetMilliseconds))
+			}
+			task.Start()
+
+			task.WaitForTermination()
+
+			tasksWg.Done()
+		}()
+	}
+
+	return nil
+}
+
+func (g *NormalTaskGroup) StopAllTasks() {
+	for _, task := range g.normalTasks {
+		task.Stop()
+	}
 }
