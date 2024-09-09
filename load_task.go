@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -43,54 +42,6 @@ func NewLoadTask(taskName string) (*LoadTask, error) {
 	loadTask.BaseTask = baseTask
 
 	return loadTask, nil
-}
-
-func (t *LoadTask) addSkuQuery(query string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	skuQuery := SkuQuery(strings.ToUpper(query))
-
-	t.skuQueries = append(t.skuQueries, skuQuery)
-}
-
-func (t *LoadTask) addKeywordQuery(query string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	query = strings.ToLower(query)
-	q := createKeywordQuery(query)
-
-	t.kwdQueries = append(t.kwdQueries, q)
-}
-
-func (t *LoadTask) removeSkuQuery(query string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	skuQuery := SkuQuery(strings.ToUpper(query))
-
-	for i, q := range t.skuQueries {
-		if q == skuQuery {
-			t.skuQueries = append(t.skuQueries[:i], t.skuQueries[i+1:]...)
-			break
-		}
-	}
-}
-
-func (t *LoadTask) removeKeywordQuery(query string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	query = strings.ToLower(query)
-	q := createKeywordQuery(query)
-
-	for i, kwdQuery := range t.kwdQueries {
-		if kwdQuery.rawQueryStr == q.rawQueryStr {
-			t.kwdQueries = append(t.kwdQueries[:i], t.kwdQueries[i+1:]...)
-			break
-		}
-	}
 }
 
 func (t *LoadTask) loopMonitor() {
