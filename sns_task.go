@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	NEW_ARRIVALS_URL string = "https://core.dxpapi.com/api/v1/core/?&request_type=search&fl=pid%2Cprice%2Ctitle%2Cbrand%2Cthumb_image%2Cdescription%2Csku%2Cavailability%2Ccategories_path%2Csub_brand%2Cbrand_color%2Ccolor%2Cproduct_level%2Cstyle%2Cgender%2Cseason%2Coriginal_price_usd%2Coriginal_price_eur%2Coriginal_price_gbp%2Coriginal_price_dkk%2Coriginal_price_sek%2Csignup_end_date%2Craffle_delayed%2Cprice_usd%2Cprice_eur%2Cprice_gbp%2Cprice_dkk%2Cprice_sek%2Cproduct_type%2Cproduct_group%2Cis_raffle%2Cdiscount_usd%2Cdiscount_eur%2Cdiscount_gbp%2Cdiscount_dkk%2Cdiscount_sek%2Ccustom_tag%2Cmarket_reference_eu%2Cmarket_reference_uk%2Cmarket_reference_us%2Csize_clothing_US%2Csize_clothing_EU%2Csize_clothing_UK%2Csize_clothing_JP%2Csize_shoes_US%2Csize_shoes_EU%2Csize_shoes_UK%2Csize_shoes_JP%2Cpublishing_date%2Craffle_finalized%2Cis_in_stock%2Ceu_category_ids%2Cuk_category_ids%2Cus_category_ids%2Crelease_date_eu%2Crelease_date_uk%2Crelease_date_us&account_id=7488&view_id=app_emea&domain_key=sneakersnstuff_de&q=31d26a6487e08357bd771619e894b0c6&search_type=category&url=https%3A%2F%2Fsneakersnstuff.com&fq=Category%3A%22Skate-Sneakers%22%20OR%20%22Basketball-Schuhe%22%20OR%20%22Court-Sneakers%22%20OR%20%22Retro%20Basketball-Schuhe%22%20OR%20%22Laufschuhe%22%20OR%20%22Schuhe%22%20OR%20%22Slides%20%26%20Sandalen%22%20OR%20%22Retro%20Runners%22%20OR%20%22Trail-Sneakers%22&start=0&rows=40"
+	NEW_ARRIVALS_URL string = "https://core.dxpapi.com/api/v1/core/?request_type=search&fl=pid%2Cprice%2Ctitle%2Cbrand%2Cthumb_image%2Cdescription%2Csku%2Cavailability%2Ccategories_path%2Csub_brand%2Cbrand_color%2Ccolor%2Cproduct_level%2Cstyle%2Cgender%2Cseason%2Coriginal_price_usd%2Coriginal_price_eur%2Coriginal_price_gbp%2Coriginal_price_dkk%2Coriginal_price_sek%2Csignup_end_date%2Craffle_delayed%2Cprice_usd%2Cprice_eur%2Cprice_gbp%2Cprice_dkk%2Cprice_sek%2Cproduct_type%2Cproduct_group%2Cis_raffle%2Cdiscount_usd%2Cdiscount_eur%2Cdiscount_gbp%2Cdiscount_dkk%2Cdiscount_sek%2Ccustom_tag%2Cmarket_reference_eu%2Cmarket_reference_uk%2Cmarket_reference_us%2Csize_clothing_US%2Csize_clothing_EU%2Csize_clothing_UK%2Csize_clothing_JP%2Csize_shoes_US%2Csize_shoes_EU%2Csize_shoes_UK%2Csize_shoes_JP%2Cpublishing_date%2Craffle_finalized%2Cis_in_stock%2Ceu_category_ids%2Cuk_category_ids%2Cus_category_ids%2Crelease_date_eu%2Crelease_date_uk%2Crelease_date_us&account_id=7488&view_id=app_emea&domain_key=sneakersnstuff_de&q=31d26a6487e08357bd771619e894b0c6&search_type=category&url=https%3A%2F%2Fsneakersnstuff.com&fq=Category%3A%22Skate-Sneakers%22%20OR%20%22Basketball-Schuhe%22%20OR%20%22Court-Sneakers%22%20OR%20%22Retro%20Basketball-Schuhe%22%20OR%20%22Laufschuhe%22%20OR%20%22Schuhe%22%20OR%20%22Slides%20%26%20Sandalen%22%20OR%20%22Retro%20Runners%22%20OR%20%22Trail-Sneakers%22&start=0&rows=40"
 	USER_AGENT       string = "okhttp/4.12.0"
 )
 
@@ -161,4 +161,29 @@ func (t *SnsTask) getProductsBySku() (*ProductsBySkusResponse, error) {
 	}
 
 	return &productsBySkusResponse, nil
+}
+
+func getChangesToAvailable(knownSizes []string, newSizes []string) []string {
+	sizesChangedToAvailable := []string{}
+
+	for _, newSize := range newSizes {
+		included := false
+
+		for _, knownSize := range knownSizes {
+			if knownSize == newSize {
+				included = true
+				break
+			}
+		}
+
+		if !included {
+			sizesChangedToAvailable = append(sizesChangedToAvailable, newSize)
+		}
+	}
+
+	return sizesChangedToAvailable
+}
+
+func GetProductData(productNode ProductNode) ProductData {
+	return ProductData{}
 }
