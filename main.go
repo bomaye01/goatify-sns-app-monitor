@@ -136,7 +136,7 @@ func main() {
 			return
 		}
 
-		err = normalTaskGroup.AddTask(normalTask)
+		err = normalTaskGroup.AddTask(normalTask.BaseTask)
 		if err != nil {
 			mainLogger.Red(fmt.Sprintf("Error adding normal task %s to task group: %v", taskName, err))
 			return
@@ -154,7 +154,7 @@ func main() {
 			return
 		}
 
-		err = loadTaskGroup.AddTask(loadTask)
+		err = loadTaskGroup.AddTask(loadTask.BaseTask)
 		if err != nil {
 			mainLogger.Red(fmt.Sprintf("Error adding load task %s to task group: %v", taskName, err))
 			return
