@@ -2,13 +2,16 @@ package main
 
 import (
 	"errors"
+	"math/rand"
 	"sync"
+	"time"
 )
 
 type BaseTaskGroup struct {
 	mu             sync.Mutex
 	proxyHandler   *ProxyHandler
 	webhookHandler *WebhookHandler
+	baseTasks      []*BaseTask
 }
 
 func NewBaseTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandler) (*BaseTaskGroup, error) {
@@ -23,4 +26,71 @@ func NewBaseTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandler
 		proxyHandler:   proxyHandler,
 		webhookHandler: webhookHandler,
 	}, nil
+}
+
+func (g *BaseTaskGroup) AddTask(task *BaseTask) error {
+	if task.GetStatus() != StatusReady {
+		return &TaskNotReadyError{}
+	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	g.baseTasks = append(g.baseTasks, task)
+
+	return nil
+}
+
+func (g *BaseTaskGroup) RemoveTask(task *BaseTask) error {
+	if task.GetStatus() == StatusRunning {
+		return &TaskRunningError{}
+	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	removeIndex := -1
+	for i, t := range g.baseTasks {
+		if t == task {
+			removeIndex = i
+			break
+		}
+	}
+	if removeIndex >= 0 {
+		g.baseTasks = append(g.baseTasks[:removeIndex], g.baseTasks[removeIndex+1:]...)
+	}
+
+	return nil
+}
+
+func (g *BaseTaskGroup) StartAllTasks() error {
+	for _, task := range g.baseTasks {
+		if task.GetStatus() != StatusReady {
+			return &TaskNotReadyError{}
+		}
+	}
+
+	for _, task := range g.baseTasks {
+		tasksWg.Add(1)
+
+		go func() {
+			if config.NormalTask.BurstStart {
+				offsetMilliseconds := rand.Intn(config.NormalTask.Timeout)
+				time.Sleep(time.Millisecond * time.Duration(offsetMilliseconds))
+			}
+			task.Start()
+
+			task.WaitForTermination()
+
+			tasksWg.Done()
+		}()
+	}
+
+	return nil
+}
+
+func (g *BaseTaskGroup) StopAllTasks() {
+	for _, task := range g.baseTasks {
+		task.Stop()
+	}
 }

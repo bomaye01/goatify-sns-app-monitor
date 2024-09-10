@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
 	"strings"
-	"time"
 )
 
 type LoadTaskGroup struct {
@@ -12,7 +10,6 @@ type LoadTaskGroup struct {
 	lastKnownPid    string
 	skuQueryStrings []string
 	kwdQueryStrings []string
-	loadTasks       []*LoadTask
 }
 
 func NewLoadTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandler, lastKnownPid string, skuQueryStrings []string, kwdQueryStrings []string) (*LoadTaskGroup, error) {
@@ -20,7 +17,6 @@ func NewLoadTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandler
 		lastKnownPid:    lastKnownPid,
 		skuQueryStrings: skuQueryStrings,
 		kwdQueryStrings: kwdQueryStrings,
-		loadTasks:       []*LoadTask{},
 	}
 
 	baseTaskGroup, err := NewBaseTaskGroup(proxyHandler, webhookHandler)
@@ -86,75 +82,6 @@ func (g *LoadTaskGroup) RemoveKwdQuery(kwdStr string) {
 
 	if removeIndex >= 0 {
 		g.kwdQueryStrings = append(g.kwdQueryStrings[:removeIndex], g.kwdQueryStrings[removeIndex+1:]...)
-	}
-}
-
-func (g *LoadTaskGroup) AddTask(task *LoadTask) error {
-	if task.GetStatus() != StatusReady {
-		return &TaskNotReadyError{}
-	}
-
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	g.loadTasks = append(g.loadTasks, task)
-
-	return nil
-}
-
-func (g *LoadTaskGroup) RemoveTask(task *LoadTask) error {
-	if task.GetStatus() == StatusRunning {
-		return &TaskRunningError{}
-	}
-
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	removeIndex := -1
-	for i, t := range g.loadTasks {
-		if t == task {
-			removeIndex = i
-			break
-		}
-	}
-	if removeIndex >= 0 {
-		g.loadTasks = append(g.loadTasks[:removeIndex], g.loadTasks[removeIndex+1:]...)
-	}
-
-	return nil
-}
-
-func (g *LoadTaskGroup) StartAllTasks() error {
-	for _, task := range g.loadTasks {
-		if task.GetStatus() != StatusReady {
-			return &TaskNotReadyError{}
-		}
-	}
-
-	for _, task := range g.loadTasks {
-		tasksWg.Add(1)
-
-		go func() {
-			if config.NormalTask.BurstStart {
-				offsetMilliseconds := rand.Intn(config.NormalTask.Timeout)
-				time.Sleep(time.Millisecond * time.Duration(offsetMilliseconds))
-			}
-			task.Start()
-		}()
-	}
-
-	return nil
-}
-
-func (g *LoadTaskGroup) StopAllTasks() {
-	for _, task := range g.loadTasks {
-		go func() {
-			task.Stop()
-
-			task.WaitForTermination()
-
-			tasksWg.Done()
-		}()
 	}
 }
 
