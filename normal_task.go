@@ -7,9 +7,14 @@ import (
 
 type NormalTask struct {
 	*SnsTask
+	group *NormalTaskGroup
 }
 
-func NewNormalTask(taskName string) (*NormalTask, error) {
+func NewNormalTask(taskName string, group *NormalTaskGroup) (*NormalTask, error) {
+	if group == nil {
+		return nil, fmt.Errorf("Error creating normal task: group nil")
+	}
+
 	normalTask := &NormalTask{
 		SnsTask: &SnsTask{},
 	}
@@ -36,13 +41,11 @@ func (t *NormalTask) loopMonitor() {
 
 	t.rotateProxy()
 
-	t.getProductsBySku()
+	res, err := t.getProductsBySku()
+	if err != nil {
+		t.logger.Red(err)
+		return
+	}
 
-	// productData := &ProductData{}
-
-	// Compare new data with known product states
-	// stateChanged := t.matchProductStates(productData)
-	// if stateChanged {
-	// 	go writeProductStates()
-	// }
+	go t.group.checkProductsBySkusResponse(res)
 }
