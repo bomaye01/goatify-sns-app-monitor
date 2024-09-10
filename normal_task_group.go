@@ -88,8 +88,11 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 
 	g.mu.Lock()
 
-	normalProductData := []ProductData{}
+	syncRequired := false
+
+	checkedLoadQueries := []SkuQuery{}
 	loadProductData := []ProductData{}
+
 	for _, productEdge := range res.Data.Site.Search.SearchProducts.Products.Edges {
 		// Determine if sku is from normal or load
 		pSkuQuery := SkuQuery(strings.ToUpper(productEdge.Node.Sku))
@@ -97,26 +100,29 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 		productData := GetProductData(productEdge.Node)
 
 		if g.isNormalSku(pSkuQuery) {
-			normalProductData = append(normalProductData, productData)
+			stateChanged := g.matchProductStates(productData)
+			if stateChanged {
+				syncRequired = true
+			}
 		}
 		if g.isLoadSku(pSkuQuery) {
+			checkedLoadQueries = append(checkedLoadQueries, pSkuQuery)
 			loadProductData = append(loadProductData, productData)
 		}
 	}
 
 	go g.loadTaskGroup.handleSkuCheckResponse(loadProductData)
 
-	g.mu.Unlock()
+	g.removeCheckedLoadSkuQueries(checkedLoadQueries)
 
-	// Compare normal product nodes with states
-	syncRequired := g.matchProductStates(normalProductData)
+	g.mu.Unlock()
 
 	if syncRequired {
 		go writeProductStates()
 	}
 }
 
-func (g *NormalTaskGroup) matchProductStates(productData []ProductData) bool {
+func (g *NormalTaskGroup) matchProductStates(product ProductData) bool {
 	statesNormalMu.Lock()
 	defer statesNormalMu.Unlock()
 	g.mu.Lock()
@@ -124,63 +130,61 @@ func (g *NormalTaskGroup) matchProductStates(productData []ProductData) bool {
 
 	stateChange := false
 
-	for _, product := range productData {
-		notifySize := false
-		notifyPrice := false
+	notifySize := false
+	notifyPrice := false
 
-		newAvailableSizes := []string{}
-		oldPrice := ""
+	newAvailableSizes := []string{}
+	oldPrice := ""
 
-		for _, state := range productStates.Normal.ProductStates {
-			if state.Sku == product.Sku {
-				if !reflect.DeepEqual(state.AvailableSizes, product.AvailableSizes) {
-					stateChange = true
+	for _, state := range productStates.Normal.ProductStates {
+		if state.Sku == product.Sku {
+			if !reflect.DeepEqual(state.AvailableSizes, product.AvailableSizes) {
+				stateChange = true
 
-					newAvailableSizes = getChangesToAvailable(state.AvailableSizes, product.AvailableSizes)
-					if len(newAvailableSizes) != 0 {
-						notifySize = true
-					}
-
-					state.AvailableSizes = product.AvailableSizes
+				newAvailableSizes = getChangesToAvailable(state.AvailableSizes, product.AvailableSizes)
+				if len(newAvailableSizes) != 0 {
+					notifySize = true
 				}
 
-				if state.Price != product.Price {
-					stateChange = true
+				state.AvailableSizes = product.AvailableSizes
+			}
 
-					if product.Price < state.Price {
-						notifyPrice = true
-					}
+			if state.Price != product.Price {
+				stateChange = true
 
-					oldPrice = state.Price
-
-					state.Price = product.Price
+				if product.Price < state.Price {
+					notifyPrice = true
 				}
+
+				oldPrice = state.Price
+
+				state.Price = product.Price
 			}
 		}
+	}
 
-		// Console log
-		if notifySize && notifyPrice {
-			g.logger.Green(fmt.Sprintf("%s: New available sizes: %v | Price changed: %s -> %s", product.Sku, newAvailableSizes, oldPrice, product.Price))
-		} else if notifyPrice {
-			if oldPrice > product.Price {
-				g.logger.Green(fmt.Sprintf("%s: Price changed: %s -> %s", product.Sku, oldPrice, product.Price))
-			} else {
-				g.logger.Gray(fmt.Sprintf("%s: Price changed: %s -> %s", product.Sku, oldPrice, product.Price))
-			}
-		} else if notifySize {
-			g.logger.Green(fmt.Sprintf("%s: New available sizes: %v", product.Sku, newAvailableSizes))
+	// Console log
+	if notifySize && notifyPrice {
+		g.logger.Green(fmt.Sprintf("%s: New available sizes: %v | Price changed: %s -> %s", product.Sku, newAvailableSizes, oldPrice, product.Price))
+	} else if notifyPrice {
+		if oldPrice > product.Price {
+			g.logger.Green(fmt.Sprintf("%s: Price changed: %s -> %s", product.Sku, oldPrice, product.Price))
 		} else {
-			g.logger.Gray(fmt.Sprintf("%s: No changes on product", product.Sku))
+			g.logger.Gray(fmt.Sprintf("%s: Price changed: %s -> %s", product.Sku, oldPrice, product.Price))
 		}
+	} else if notifySize {
+		g.logger.Green(fmt.Sprintf("%s: New available sizes: %v", product.Sku, newAvailableSizes))
+	} else {
+		g.logger.Gray(fmt.Sprintf("%s: No changes on product", product.Sku))
+	}
 
-		// Webhook notify
-		if notifySize {
-			g.notifySize(&product)
-		}
-		if notifyPrice {
-			if oldPrice > product.Price {
-				g.notifyPrice(&product, oldPrice, product.Price)
-			}
+	// Webhook notify
+	if notifySize {
+		g.notifySize(&product)
+	}
+	if notifyPrice {
+		if oldPrice > product.Price {
+			g.notifyPrice(&product, oldPrice, product.Price)
 		}
 	}
 
@@ -188,9 +192,6 @@ func (g *NormalTaskGroup) matchProductStates(productData []ProductData) bool {
 }
 
 func (g *NormalTaskGroup) isNormalSku(sku SkuQuery) bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
 	for _, query := range g.skuQueries {
 		if query == sku {
 			return true
@@ -200,15 +201,51 @@ func (g *NormalTaskGroup) isNormalSku(sku SkuQuery) bool {
 }
 
 func (g *NormalTaskGroup) isLoadSku(sku SkuQuery) bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
 	for _, query := range g.loadSkuQueries {
 		if query == sku {
 			return true
 		}
 	}
 	return false
+}
+
+func (g *NormalTaskGroup) removeCheckedLoadSkuQueries(checkedQueries []SkuQuery) bool {
+	uncheckedQueries := []SkuQuery{}
+
+	for _, query := range g.loadSkuQueries {
+		checked := false
+
+		for _, checkedQuery := range checkedQueries {
+			if query == checkedQuery {
+				checked = true
+				break
+			}
+		}
+
+		if !checked {
+			uncheckedQueries = append(uncheckedQueries, query)
+		}
+	}
+
+	g.loadSkuQueries = uncheckedQueries
+
+	return false
+}
+
+func (g *NormalTaskGroup) getAllSkusAsStrings() []string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	allSkus := []string{}
+
+	for _, q := range g.skuQueries {
+		allSkus = append(allSkus, string(q))
+	}
+	for _, q := range g.loadSkuQueries {
+		allSkus = append(allSkus, string(q))
+	}
+
+	return allSkus
 }
 
 func (g *NormalTaskGroup) AddLoadSkuQueries(queries []SkuQuery) {

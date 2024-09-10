@@ -17,6 +17,7 @@ func NewNormalTask(taskName string, group *NormalTaskGroup) (*NormalTask, error)
 
 	normalTask := &NormalTask{
 		SnsTask: &SnsTask{},
+		group:   group,
 	}
 
 	runCallback := func() {
@@ -41,7 +42,13 @@ func (t *NormalTask) loopMonitor() {
 
 	t.rotateProxy()
 
-	res, err := t.getProductsBySku()
+	allSkus := t.group.getAllSkusAsStrings()
+
+	if len(allSkus) == 0 {
+		return
+	}
+
+	res, err := t.getProductsBySku(allSkus)
 	if err != nil {
 		t.logger.Red(err)
 		return

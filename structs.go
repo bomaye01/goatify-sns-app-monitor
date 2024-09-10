@@ -50,7 +50,7 @@ type ProductStatesLoad struct {
 
 type ProductStateLoad struct {
 	Sku                    string   `json:"sku"`
-	MatchingSkuQueries     []string `json:"matchingSkuQueries"`
+	MatchedBySku           bool     `json:"matchedBySku"`
 	MatchingKeywordQueries []string `json:"matchingKeywordQueries"`
 }
 
@@ -62,6 +62,7 @@ type ProductData struct {
 	AvailableSizes []string
 	Price          string
 	ImageUrl       string
+	IdentifyerStr  string
 }
 
 // Websocket receive structs
