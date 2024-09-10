@@ -36,7 +36,7 @@ type ProductStatesNormal struct {
 }
 
 type ProductStateNormal struct {
-	ProductPageUrl string   `json:"productPageUrl"`
+	Sku            string   `json:"sku"`
 	AvailableSizes []string `json:"availableSizes"`
 	Price          string   `json:"price"`
 }
@@ -49,17 +49,19 @@ type ProductStatesLoad struct {
 }
 
 type ProductStateLoad struct {
-	ProductPageUrl         string   `json:"productPageUrl"`
+	Sku                    string   `json:"sku"`
 	MatchingSkuQueries     []string `json:"matchingSkuQueries"`
 	MatchingKeywordQueries []string `json:"matchingKeywordQueries"`
 }
 
 type ProductData struct {
-	ProductUrl string
-	Title      string
-	ImageUrl   string
-	Sku        string
-	Pid        string
+	ProductUrl     string
+	Title          string
+	Sku            string
+	Pid            string
+	AvailableSizes []string
+	Price          string
+	ImageUrl       string
 }
 
 // Websocket receive structs
