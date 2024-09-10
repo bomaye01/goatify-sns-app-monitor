@@ -68,8 +68,8 @@ func main() {
 
 	initTerminal()
 
-	tasksWg.Add(1)
-	go startWebsocketServer()
+	// tasksWg.Add(1)
+	// go startWebsocketServer()
 
 	mainLogger.White("Starting SNS monitor...")
 
@@ -125,12 +125,16 @@ func main() {
 		return
 	}
 
+	// Associate task groups with one another
+	normalTaskGroup.LinkToLoadTaskGroup(loadTaskGroup)
+	loadTaskGroup.LinkToNormalTaskGroup(normalTaskGroup)
+
 	// Create normal tasks
 	for i := range config.NormalTask.NumTasks {
 		tasksWg.Add(1)
 
 		taskName := fmt.Sprintf("NORMAL: %02d", i)
-		normalTask, err := NewNormalTask(taskName)
+		normalTask, err := NewNormalTask(taskName, normalTaskGroup)
 		if err != nil {
 			mainLogger.Red(fmt.Sprintf("Error creating initial normal task %s: %v", taskName, err))
 			return
@@ -148,7 +152,7 @@ func main() {
 		tasksWg.Add(1)
 
 		taskName := fmt.Sprintf("NORMAL: %02d", i)
-		loadTask, err := NewLoadTask(taskName)
+		loadTask, err := NewLoadTask(taskName, loadTaskGroup)
 		if err != nil {
 			mainLogger.Red(fmt.Sprintf("Error creating initial load task %s: %v", taskName, err))
 			return
