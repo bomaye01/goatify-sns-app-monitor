@@ -125,8 +125,6 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 func (g *NormalTaskGroup) matchProductStates(product ProductData) bool {
 	statesNormalMu.Lock()
 	defer statesNormalMu.Unlock()
-	g.mu.Lock()
-	defer g.mu.Unlock()
 
 	stateChange := false
 
@@ -136,8 +134,12 @@ func (g *NormalTaskGroup) matchProductStates(product ProductData) bool {
 	newAvailableSizes := []string{}
 	oldPrice := ""
 
+	productInStates := false
+
 	for _, state := range productStates.Normal.ProductStates {
 		if state.Sku == product.Sku {
+			productInStates = true
+
 			if !reflect.DeepEqual(state.AvailableSizes, product.AvailableSizes) {
 				stateChange = true
 
@@ -161,6 +163,16 @@ func (g *NormalTaskGroup) matchProductStates(product ProductData) bool {
 				state.Price = product.Price
 			}
 		}
+	}
+
+	if !productInStates {
+		newState := &ProductStateNormal{
+			Sku:            product.Sku,
+			AvailableSizes: product.AvailableSizes,
+			Price:          product.Price,
+		}
+
+		productStates.Normal.ProductStates = append(productStates.Normal.ProductStates, newState)
 	}
 
 	// Console log
