@@ -19,7 +19,6 @@ var defaultConfig Config = Config{
 
 var defaultProductStates ProductStates = ProductStates{
 	Normal: ProductStatesNormal{
-		SKUs:          []string{},
 		ProductStates: []*ProductStateNormal{},
 	},
 	Load: ProductStatesLoad{

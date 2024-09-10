@@ -157,9 +157,13 @@ func (g *LoadTaskGroup) handleNewArrivalsResponse(res *NewArrivalsResponse) {
 		newSKUs = append(newSKUs, SkuQuery(productNode.Sku))
 	}
 
-	g.normalTaskGroup.AddLoadSkuQueries(newSKUs)
+	if numNewSkus := len(newSKUs); numNewSkus > 0 {
+		g.logger.Yellow(fmt.Sprintf("%d new products loaded. Checking...", numNewSkus))
 
-	g.lastKnownPid = res.Response.ProductNodes[0].Pid
+		g.normalTaskGroup.AddLoadSkuQueries(newSKUs)
+
+		g.lastKnownPid = res.Response.ProductNodes[0].Pid
+	}
 }
 
 func (g *LoadTaskGroup) handleSkuCheckResponse(productData []ProductData) {
@@ -186,7 +190,7 @@ func (g *LoadTaskGroup) handleSkuCheckResponse(productData []ProductData) {
 
 		g.notifyLoad(product)
 
-		g.normalTaskGroup.AddSkuQuery(product.Sku)
+		g.normalTaskGroup.AddSkuQuery(product.Sku, product)
 
 		stateChanged := g.matchProductStates(product.Sku, matchedBySku, matchingKwdQueries)
 		if stateChanged {

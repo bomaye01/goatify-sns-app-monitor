@@ -53,13 +53,17 @@ func (g *NormalTaskGroup) LinkToLoadTaskGroup(loadTaskGroup *LoadTaskGroup) erro
 	return nil
 }
 
-func (g *NormalTaskGroup) AddSkuQuery(skuStr string) {
+func (g *NormalTaskGroup) AddSkuQuery(skuStr string, productData ProductData) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
 	skuStr = strings.TrimSpace(strings.ToUpper(skuStr))
 
 	g.skuQueryStrings = append(g.skuQueryStrings, skuStr)
+
+	g.matchProductStates(productData)
+
+	go writeProductStates()
 }
 
 func (g *NormalTaskGroup) RemoveSkuQuery(skuStr string) {
@@ -76,9 +80,15 @@ func (g *NormalTaskGroup) RemoveSkuQuery(skuStr string) {
 		}
 	}
 
-	if removeIndex >= 0 {
-		g.skuQueryStrings = append(g.skuQueryStrings[:removeIndex], g.skuQueryStrings[removeIndex+1:]...)
+	if removeIndex == -1 {
+		return
 	}
+
+	g.skuQueryStrings = append(g.skuQueryStrings[:removeIndex], g.skuQueryStrings[removeIndex+1:]...)
+
+	// Remove from states
+
+	go writeProductStates()
 }
 
 func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusResponse) {

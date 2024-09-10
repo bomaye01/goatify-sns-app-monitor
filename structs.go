@@ -31,7 +31,6 @@ type ProductStates struct {
 }
 
 type ProductStatesNormal struct {
-	SKUs          []string              `json:"skus"`
 	ProductStates []*ProductStateNormal `json:"productStates"`
 }
 

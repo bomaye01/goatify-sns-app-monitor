@@ -29,7 +29,6 @@ var fileSystemLogger *Logger = NewLogger("FILE")
 var websocketLogger *Logger = NewLogger("WEBSOCKET")
 
 var config *Config = nil
-var productStates *ProductStates = nil
 
 var normalTasksByProductUrl map[string][]*NormalTask = make(map[string][]*NormalTask)
 var loadTasks []*LoadTask
@@ -113,7 +112,9 @@ func main() {
 	statesNormalMu.Lock()
 	statesLoadMu.Lock()
 
-	normalTaskGroup, err := NewNormalTaskGroup(proxyHandler, webhookHandler, productStates.Normal.SKUs)
+	normalSkus := NormalGetAllSkus()
+
+	normalTaskGroup, err := NewNormalTaskGroup(proxyHandler, webhookHandler, normalSkus)
 	if err != nil {
 		mainLogger.Red(fmt.Sprintf("Error creating normal task group: %v", err))
 		return
