@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 
 	http "github.com/bogdanfinn/fhttp"
 )
@@ -198,5 +200,65 @@ func getChangesToAvailable(knownSizes []string, newSizes []string) []string {
 }
 
 func GetProductData(productNode ProductNode) ProductData {
-	return ProductData{}
+	sku := productNode.Sku
+	productUrl := fmt.Sprintf("https://www.sneakersnstuff.com/de/product/%s", sku)
+
+	title := productNode.Name
+
+	availableSizes := []string{}
+	for _, variantEdge := range productNode.Variants.Edges {
+		for _, metafieldEdge := range variantEdge.Node.Metafields.Edges {
+			if metafieldEdge.Node.Key == "sizes" {
+				if strings.Contains(metafieldEdge.Node.Value, "\"EU\":\"") {
+					euSizeValue := strings.Split(metafieldEdge.Node.Value, "\"EU\":\"")[1]
+
+					if strings.Contains(euSizeValue, "\"") {
+						euSizeValue = strings.Split(euSizeValue, "\"")[0]
+
+						availableSizes = append(availableSizes, euSizeValue)
+					}
+				}
+
+				break
+			}
+		}
+	}
+
+	price := strconv.Itoa(productNode.Prices.Price.Value)
+
+	imageUrl := productNode.DefaultImage.URL
+
+	identifyerStr := ""
+	for _, metafieldEdge := range productNode.Metafields.Edges {
+		if metafieldEdge.Node.Key == "product_copy" {
+			if strings.Contains(metafieldEdge.Node.Value, "\\r\\n \\r\\n- ") {
+				identifyerStr = strings.Split(metafieldEdge.Node.Value, "\\r\\n \\r\\n- ")[1]
+
+				if strings.Contains(identifyerStr, "\\r") {
+					identifyerStr = strings.Split(identifyerStr, "\\r")[0]
+				} else {
+					identifyerStr = ""
+				}
+			}
+
+			break
+		}
+	}
+	for _, customfieldEdge := range productNode.CustomFields.Edges {
+		if customfieldEdge.Node.Name == "brand_color" {
+			identifyerStr = fmt.Sprintf("%s %s", identifyerStr, customfieldEdge.Node.Value)
+
+			break
+		}
+	}
+
+	return ProductData{
+		ProductUrl:     productUrl,
+		Title:          title,
+		Sku:            sku,
+		AvailableSizes: availableSizes,
+		Price:          price,
+		ImageUrl:       imageUrl,
+		IdentifyerStr:  identifyerStr,
+	}
 }
