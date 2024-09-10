@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -12,6 +13,7 @@ type KwdQuery struct {
 	exclusiveKeywords []string
 	orKeywordsGroups  [][]string
 }
+
 type SkuQuery string
 
 type QueryType int
@@ -155,16 +157,136 @@ func (g *LoadTaskGroup) handleNewArrivalsResponse(res *NewArrivalsResponse) {
 		newSKUs = append(newSKUs, SkuQuery(productNode.Sku))
 	}
 
-	g.lastKnownPid = res.Response.ProductNodes[0].Pid
-
 	g.normalTaskGroup.AddLoadSkuQueries(newSKUs)
+
+	g.lastKnownPid = res.Response.ProductNodes[0].Pid
 }
 
-func (g *LoadTaskGroup) handleSkuCheckResponse(productNodes []ProductData) {
+func (g *LoadTaskGroup) handleSkuCheckResponse(productData []ProductData) {
+	g.mu.Lock()
+	defer g.mu.Lock()
 
+	syncRequired := false
+
+	for _, product := range productData {
+		productSku := SkuQuery(strings.ToUpper(product.Sku))
+
+		matchedBySku := false
+		matchingKwdQueries := []string{}
+
+		if g.isLoadSku(productSku) {
+			matchedBySku = true
+		} else {
+			matchingKwdQueries = g.productMatchingKeywordQueries(product)
+
+			if len(matchingKwdQueries) == 0 {
+				continue
+			}
+		}
+
+		g.notifyLoad(product)
+
+		g.normalTaskGroup.AddSkuQuery(product.Sku)
+
+		stateChanged := g.matchProductStates(product.Sku, matchedBySku, matchingKwdQueries)
+		if stateChanged {
+			syncRequired = true
+		}
+	}
+
+	if syncRequired {
+		go writeProductStates()
+	}
 }
 
-func (t *LoadTaskGroup) notifyLoad(productData *ProductData) {}
+func (g *LoadTaskGroup) isLoadSku(skuQuery SkuQuery) bool {
+	for _, query := range g.skuQueries {
+		if query == skuQuery {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (g *LoadTaskGroup) matchProductStates(sku string, matchedBySku bool, matchingKeywordQueries []string) bool {
+	statesLoadMu.Lock()
+	defer statesLoadMu.Unlock()
+
+	stateChanged := false
+
+	for _, query := range productStates.Load.NotifiedProducts {
+		if query.Sku == sku {
+			if query.MatchedBySku != matchedBySku {
+				query.MatchedBySku = matchedBySku
+
+				stateChanged = true
+			}
+
+			if !reflect.DeepEqual(query.MatchingKeywordQueries, matchingKeywordQueries) {
+				query.MatchingKeywordQueries = matchingKeywordQueries
+
+				stateChanged = true
+			}
+		}
+	}
+
+	return stateChanged
+}
+
+func (g *LoadTaskGroup) productMatchingKeywordQueries(product ProductData) []string {
+	matchingQueries := []string{}
+
+	for _, kwdQuery := range g.kwdQueries {
+		match := true
+		// Inclusive keywords check
+		for _, inclusiveKwd := range kwdQuery.inclusiveKeywords {
+			if !strings.Contains(product.IdentifyerStr, inclusiveKwd) {
+				match = false
+				break
+			}
+		}
+		if !match {
+			continue
+		}
+
+		// Exclusive keywords check
+		for _, exclusiveKwd := range kwdQuery.exclusiveKeywords {
+			if strings.Contains(product.IdentifyerStr, exclusiveKwd) {
+				match = false
+				break
+			}
+		}
+		if !match {
+			continue
+		}
+
+		// Or inclusive keywords groups check
+		for _, orKwdGroup := range kwdQuery.orKeywordsGroups {
+			anyMatch := false
+
+			for _, orKwd := range orKwdGroup {
+				if strings.Contains(product.IdentifyerStr, orKwd) {
+					anyMatch = true
+					break
+				}
+			}
+
+			if !anyMatch {
+				match = false
+				break
+			}
+		}
+		if !match {
+			continue
+		}
+
+		matchingQueries = append(matchingQueries, kwdQuery.rawQueryStr)
+	}
+	return matchingQueries
+}
+
+func (g *LoadTaskGroup) notifyLoad(productData ProductData) {}
 
 func createKeywordQuery(kwdSearchQuery string) KwdQuery {
 	kwdGroup := KwdQuery{
