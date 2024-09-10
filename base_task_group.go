@@ -11,10 +11,11 @@ type BaseTaskGroup struct {
 	mu             sync.Mutex
 	proxyHandler   *ProxyHandler
 	webhookHandler *WebhookHandler
+	logger         *Logger
 	baseTasks      []*BaseTask
 }
 
-func NewBaseTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandler) (*BaseTaskGroup, error) {
+func NewBaseTaskGroup(taskName string, proxyHandler *ProxyHandler, webhookHandler *WebhookHandler) (*BaseTaskGroup, error) {
 	if proxyHandler == nil {
 		return nil, errors.New("proxy handler reference nil")
 	}
@@ -25,6 +26,7 @@ func NewBaseTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandler
 	return &BaseTaskGroup{
 		proxyHandler:   proxyHandler,
 		webhookHandler: webhookHandler,
+		logger:         NewLogger(taskName),
 	}, nil
 }
 
@@ -78,7 +80,7 @@ func (g *BaseTaskGroup) StartAllTasks() error {
 				offsetMilliseconds := rand.Intn(config.NormalTask.Timeout)
 				time.Sleep(time.Millisecond * time.Duration(offsetMilliseconds))
 			}
-			task.Start()
+			task.start()
 
 			task.WaitForTermination()
 
@@ -91,6 +93,6 @@ func (g *BaseTaskGroup) StartAllTasks() error {
 
 func (g *BaseTaskGroup) StopAllTasks() {
 	for _, task := range g.baseTasks {
-		task.Stop()
+		task.stop()
 	}
 }
