@@ -5,28 +5,19 @@ import (
 	"time"
 )
 
-type KwdQuery struct {
-	rawQueryStr       string
-	inclusiveKeywords []string
-	exclusiveKeywords []string
-	orKeywordsGroups  [][]string
-}
-type SkuQuery string
-
-type QueryType int
-
-const (
-	SkuQueryType     QueryType = iota
-	KeywordQueryType QueryType = iota
-)
-
 type LoadTask struct {
 	*SnsTask
+	group *LoadTaskGroup
 }
 
-func NewLoadTask(taskName string) (*LoadTask, error) {
+func NewLoadTask(taskName string, group *LoadTaskGroup) (*LoadTask, error) {
+	if group == nil {
+		return nil, fmt.Errorf("Error creating load task: group nil")
+	}
+
 	loadTask := &LoadTask{
 		SnsTask: &SnsTask{},
+		group:   group,
 	}
 
 	runCallback := func() {
@@ -48,6 +39,14 @@ func (t *LoadTask) loopMonitor() {
 	configMu.RLock()
 	defer time.Sleep(time.Millisecond * time.Duration(config.LoadTask.Timeout))
 	configMu.RUnlock()
+
+	res, err := t.getNewArrivals()
+	if err != nil {
+		t.logger.Red(err)
+		return
+	}
+
+	go t.group.handleNewArrivalsResponse(res)
 
 	t.rotateProxy()
 
