@@ -74,7 +74,7 @@ func NewBaseTask(taskName string, runCallback func(), stopCallback func(), proxy
 	}, nil
 }
 
-func (b *BaseTask) Start() error {
+func (b *BaseTask) start() error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -99,7 +99,7 @@ func (b *BaseTask) Start() error {
 	return nil
 }
 
-func (b *BaseTask) Stop() {
+func (b *BaseTask) stop() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
