@@ -58,7 +58,6 @@ type ProductData struct {
 	ProductUrl     string
 	Title          string
 	Sku            string
-	Pid            string
 	AvailableSizes []string
 	Price          string
 	ImageUrl       string
