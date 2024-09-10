@@ -173,6 +173,8 @@ func (g *NormalTaskGroup) matchProductStates(product ProductData) bool {
 		}
 
 		productStates.Normal.ProductStates = append(productStates.Normal.ProductStates, newState)
+
+		stateChange = true
 	}
 
 	// Console log
