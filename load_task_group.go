@@ -25,10 +25,9 @@ const (
 
 type LoadTaskGroup struct {
 	*BaseTaskGroup
-	normalTaskGroup  *NormalTaskGroup
-	lastKnownPid     string
-	loopUpSkuQueries []SkuQuery
-	kwdQueries       []KwdQuery
+	normalTaskGroup *NormalTaskGroup
+	lastKnownPid    string
+	kwdQueries      []KwdQuery
 }
 
 func NewLoadTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandler, lastKnownPid string, kwdQueryStrings []string) (*LoadTaskGroup, error) {
@@ -43,9 +42,8 @@ func NewLoadTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandler
 	}
 
 	loadTaskGroup := &LoadTaskGroup{
-		lastKnownPid:     lastKnownPid,
-		loopUpSkuQueries: []SkuQuery{},
-		kwdQueries:       kwdQueries,
+		lastKnownPid: lastKnownPid,
+		kwdQueries:   kwdQueries,
 	}
 
 	baseTaskGroup, err := NewBaseTaskGroup("LOAD", proxyHandler, webhookHandler)
@@ -158,6 +156,11 @@ func (g *LoadTaskGroup) handleSkuCheckResponse(productData []ProductData) {
 		matchingKwdQueries := g.keywordQueriesMatchingProduct(product)
 
 		if len(matchingKwdQueries) == 0 {
+			continue
+		}
+
+		// Dont ping skus that are already in normal monitor
+		if g.normalTaskGroup.isNormalSku(MakeSkuQuery(product.Sku)) {
 			continue
 		}
 
