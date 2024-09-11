@@ -28,7 +28,7 @@ func NewWebhookHandler() *WebhookHandler {
 }
 
 type webhookRequest struct {
-	productData *ProductData
+	productData ProductData
 	webhookUrl  string
 	fields      []discordwebhook.Field
 	time        time.Time
@@ -61,16 +61,36 @@ func (w *WebhookHandler) enqueueReq(req *webhookRequest) {
 	}()
 }
 
-func (w *WebhookHandler) NotifyRestock(productData *ProductData, availableSizes []string, price string) {
+func (w *WebhookHandler) NotifyRestock(productData ProductData) {
 	configMu.RLock()
 	defer configMu.RUnlock()
 
 	for _, webhookUrl := range config.LoadTask.WebhookUrls {
 		sizesValues := []string{}
-		if len(availableSizes)-(25*len(sizesValues)) > 25 {
-			sizesValues = append(sizesValues, strings.Join(availableSizes[:25], "\n"))
+		sizesValuesCount := 0
+		if len(productData.AvailableSizes) > 25 {
+			count := 0
+			for _, availableSize := range productData.AvailableSizes {
+				strVal := fmt.Sprintf("[%d] %s", availableSize.AmountInStock, availableSize.Name)
+
+				if count == 25 {
+					count = 0
+					sizesValuesCount += 1
+				}
+
+				sizesValues[count] = fmt.Sprintf("%s\n%s", sizesValues[count], strVal)
+
+				count += 1
+			}
 		} else {
-			sizesValues = append(sizesValues, strings.Join(availableSizes, "\n"))
+			finalStr := ""
+			for _, availableSize := range productData.AvailableSizes {
+				strVal := fmt.Sprintf("[%d] %s", availableSize.AmountInStock, availableSize.Name)
+
+				finalStr = fmt.Sprintf("%s\n%s", finalStr, strVal)
+			}
+
+			sizesValues = append(sizesValues, finalStr)
 		}
 
 		fields := []discordwebhook.Field{
@@ -81,7 +101,7 @@ func (w *WebhookHandler) NotifyRestock(productData *ProductData, availableSizes 
 			},
 			{
 				Name:   "PRICE",
-				Value:  price,
+				Value:  productData.Price,
 				Inline: true,
 			},
 			{
@@ -134,16 +154,36 @@ func (w *WebhookHandler) NotifyRestock(productData *ProductData, availableSizes 
 	}
 }
 
-func (w *WebhookHandler) NotifyPrice(productData *ProductData, availableSizes []string, oldPrice string, newPrice string) {
+func (w *WebhookHandler) NotifyPrice(productData ProductData, oldPrice string) {
 	configMu.RLock()
 	defer configMu.RUnlock()
 
 	for _, webhookUrl := range config.LoadTask.WebhookUrls {
 		sizesValues := []string{}
-		if len(availableSizes)-(25*len(sizesValues)) > 25 {
-			sizesValues = append(sizesValues, strings.Join(availableSizes[:25], "\n"))
+		sizesValuesCount := 0
+		if len(productData.AvailableSizes) > 25 {
+			count := 0
+			for _, availableSize := range productData.AvailableSizes {
+				strVal := fmt.Sprintf("[%d] %s", availableSize.AmountInStock, availableSize.Name)
+
+				if count == 25 {
+					count = 0
+					sizesValuesCount += 1
+				}
+
+				sizesValues[count] = fmt.Sprintf("%s\n%s", sizesValues[count], strVal)
+
+				count += 1
+			}
 		} else {
-			sizesValues = append(sizesValues, strings.Join(availableSizes, "\n"))
+			finalStr := ""
+			for _, availableSize := range productData.AvailableSizes {
+				strVal := fmt.Sprintf("[%d] %s", availableSize.AmountInStock, availableSize.Name)
+
+				finalStr = fmt.Sprintf("%s\n%s", finalStr, strVal)
+			}
+
+			sizesValues = append(sizesValues, finalStr)
 		}
 
 		fields := []discordwebhook.Field{
@@ -154,7 +194,7 @@ func (w *WebhookHandler) NotifyPrice(productData *ProductData, availableSizes []
 			},
 			{
 				Name:   "PRICE",
-				Value:  fmt.Sprintf("%s -> %s", oldPrice, newPrice),
+				Value:  fmt.Sprintf("%s -> %s", oldPrice, productData.Price),
 				Inline: true,
 			},
 			{
@@ -207,16 +247,36 @@ func (w *WebhookHandler) NotifyPrice(productData *ProductData, availableSizes []
 	}
 }
 
-func (w *WebhookHandler) NotifyLoad(productData *ProductData, availableSizes []string, price string, matchingSkuQueries []string, matchingKwdQueries []string) {
+func (w *WebhookHandler) NotifyLoad(productData ProductData, matchingKwdQueries []string) {
 	configMu.RLock()
 	defer configMu.RUnlock()
 
 	for _, webhookUrl := range config.LoadTask.WebhookUrls {
 		sizesValues := []string{}
-		if len(availableSizes)-(25*len(sizesValues)) > 25 {
-			sizesValues = append(sizesValues, strings.Join(availableSizes[:25], "\n"))
+		sizesValuesCount := 0
+		if len(productData.AvailableSizes) > 25 {
+			count := 0
+			for _, availableSize := range productData.AvailableSizes {
+				strVal := fmt.Sprintf("[%d] %s", availableSize.AmountInStock, availableSize.Name)
+
+				if count == 25 {
+					count = 0
+					sizesValuesCount += 1
+				}
+
+				sizesValues[count] = fmt.Sprintf("%s\n%s", sizesValues[count], strVal)
+
+				count += 1
+			}
 		} else {
-			sizesValues = append(sizesValues, strings.Join(availableSizes, "\n"))
+			finalStr := ""
+			for _, availableSize := range productData.AvailableSizes {
+				strVal := fmt.Sprintf("[%d] %s", availableSize.AmountInStock, availableSize.Name)
+
+				finalStr = fmt.Sprintf("%s\n%s", finalStr, strVal)
+			}
+
+			sizesValues = append(sizesValues, finalStr)
 		}
 
 		fields := []discordwebhook.Field{
@@ -232,7 +292,7 @@ func (w *WebhookHandler) NotifyLoad(productData *ProductData, availableSizes []s
 			},
 			{
 				Name:   "PRICE",
-				Value:  price,
+				Value:  productData.Price,
 				Inline: true,
 			},
 		}
@@ -262,24 +322,6 @@ func (w *WebhookHandler) NotifyLoad(productData *ProductData, availableSizes []s
 			}
 		}
 
-		if len(matchingSkuQueries) > 0 {
-			overshoot := 0
-			if len(matchingSkuQueries) >= 25 { // 25 lines is max allowed lines per field
-				overshoot = 25 - len(matchingSkuQueries)
-				matchingSkuQueries = matchingSkuQueries[:24]
-			}
-			strVal := strings.Join(matchingSkuQueries, "\n")
-			if overshoot > 0 {
-				strVal += fmt.Sprintf("*[+ %d more]*", overshoot)
-			}
-
-			skuQueryField := discordwebhook.Field{
-				Name:   "SKU Query Hits",
-				Value:  strVal,
-				Inline: false,
-			}
-			fields = append(fields, skuQueryField)
-		}
 		if len(matchingKwdQueries) > 0 {
 			overshoot := 0
 			if len(matchingKwdQueries) >= 25 { // 25 lines is max allowed lines per field

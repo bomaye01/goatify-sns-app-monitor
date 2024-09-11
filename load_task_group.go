@@ -161,7 +161,7 @@ func (g *LoadTaskGroup) handleSkuCheckResponse(productData []ProductData) {
 			continue
 		}
 
-		g.notifyLoad(product)
+		g.notifyLoad(product, matchingKwdQueries)
 
 		stateChanged := g.matchProductStates(product.Sku, matchingKwdQueries)
 		if stateChanged {
@@ -259,7 +259,9 @@ func (g *LoadTaskGroup) keywordQueriesMatchingProduct(product ProductData) []str
 	return matchingQueries
 }
 
-func (g *LoadTaskGroup) notifyLoad(productData ProductData) {}
+func (g *LoadTaskGroup) notifyLoad(productData ProductData, matchingKwdQueries []string) {
+	webhookHandler.NotifyLoad(productData, matchingKwdQueries)
+}
 
 func MakeSkuQuery(skuStr string) SkuQuery {
 	return SkuQuery(strings.TrimSpace(strings.ToUpper(skuStr)))
