@@ -62,13 +62,6 @@ func main() {
 		return
 	}
 
-	initTerminal()
-
-	tasksWg.Add(1)
-	go startWebsocketServer()
-
-	mainLogger.White("Starting SNS monitor...")
-
 	// Load config
 	err = readConfig()
 	if err != nil {
@@ -76,6 +69,11 @@ func main() {
 		return
 	}
 	refreshConfig()
+
+	initTerminal()
+
+	tasksWg.Add(1)
+	go startWebsocketServer()
 
 	// Load product states
 	productStates, err = readProductStates()
@@ -106,6 +104,8 @@ func main() {
 	webhookHandler = NewWebhookHandler()
 
 	configMu.RLock()
+
+	mainLogger.White("Starting SNS monitor...")
 
 	// Create task groups
 	statesNormalMu.Lock()
@@ -201,7 +201,10 @@ func initTerminal() {
 	enableVirtualTerminalProcessing()
 
 	log.SetFlags(0)
-	log.Print("\033]0;SNS Monitor - linus\007")
+
+	configMu.RLock()
+	log.Printf("\033]0;SNS Monitor - linus - %s\007", config.InstanceName)
+	configMu.RUnlock()
 }
 
 func initLogfile() (*os.File, error) {

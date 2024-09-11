@@ -8,6 +8,7 @@ type Config struct {
 	ProxyfileName       string           `json:"proxyfile"`
 	WebhookErrorTimeout int              `json:"webhookErrorTimeoutInMilliseconds"`
 	RemoveBadProxy      bool             `json:"autoRemoveBadProxy"`
+	InstanceName        string           `json:"instanceName"`
 }
 
 type NormalTaskConfig struct {
