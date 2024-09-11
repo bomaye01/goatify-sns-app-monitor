@@ -86,11 +86,9 @@ func (g *NormalTaskGroup) RemoveSkuQuery(skuStr string) {
 		}
 	}
 
-	if removeIndex == -1 {
-		return
+	if removeIndex >= 0 {
+		g.skuQueries = append(g.skuQueries[:removeIndex], g.skuQueries[removeIndex+1:]...)
 	}
-
-	g.skuQueries = append(g.skuQueries[:removeIndex], g.skuQueries[removeIndex+1:]...)
 
 	statesNormalMu.Lock()
 	NormalUnsetState(skuStr)
