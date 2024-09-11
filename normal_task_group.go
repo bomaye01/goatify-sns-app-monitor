@@ -60,8 +60,17 @@ func (g *NormalTaskGroup) AddSkuQuery(skuStr string, productData ProductData) {
 	skuStr = strings.TrimSpace(strings.ToUpper(skuStr))
 
 	g.skuQueryStrings = append(g.skuQueryStrings, skuStr)
+	g.skuQueries = append(g.skuQueries, SkuQuery(skuStr))
 
-	g.matchProductStates(productData)
+	newState := &ProductStateNormal{
+		Sku:            productData.Sku,
+		AvailableSizes: productData.AvailableSizes,
+		Price:          productData.Price,
+	}
+
+	statesNormalMu.Lock()
+	NormalSetState(skuStr, newState)
+	statesNormalMu.Unlock()
 
 	go writeProductStates()
 }
@@ -86,7 +95,9 @@ func (g *NormalTaskGroup) RemoveSkuQuery(skuStr string) {
 
 	g.skuQueryStrings = append(g.skuQueryStrings[:removeIndex], g.skuQueryStrings[removeIndex+1:]...)
 
-	// Remove from states
+	statesNormalMu.Lock()
+	NormalUnsetState(skuStr)
+	statesNormalMu.Unlock()
 
 	go writeProductStates()
 }
@@ -104,9 +115,9 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 	loadProductData := []ProductData{}
 
 	for _, productEdge := range res.Data.Site.Search.SearchProducts.Products.Edges {
-		// Determine if sku is from normal or load
-		pSkuQuery := SkuQuery(strings.ToUpper(productEdge.Node.Sku))
+		pSkuQuery := MakeSkuQuery(productEdge.Node.Sku)
 
+		// Determine if sku is from normal or load
 		productData := GetProductData(productEdge.Node)
 
 		if g.isNormalSku(pSkuQuery) {
@@ -118,6 +129,29 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 		if g.isLoadSku(pSkuQuery) {
 			checkedLoadQueries = append(checkedLoadQueries, pSkuQuery)
 			loadProductData = append(loadProductData, productData)
+		}
+
+		for _, skuQuery := range g.skuQueries {
+			included := false
+
+			if skuQuery == pSkuQuery {
+				included = true
+				break
+			}
+
+			if !included {
+				// Reset states so pinged on restock
+
+				statesNormalMu.Lock()
+				resetStates := &ProductStateNormal{
+					Sku:            string(skuQuery),
+					Price:          "0",
+					AvailableSizes: []string{},
+				}
+
+				NormalSetState(resetStates.Sku, resetStates)
+				statesNormalMu.Unlock()
+			}
 		}
 	}
 
@@ -182,7 +216,7 @@ func (g *NormalTaskGroup) matchProductStates(product ProductData) bool {
 			Price:          product.Price,
 		}
 
-		productStates.Normal.ProductStates = append(productStates.Normal.ProductStates, newState)
+		NormalSetState(newState.Sku, newState)
 
 		stateChange = true
 	}
@@ -262,11 +296,19 @@ func (g *NormalTaskGroup) getAllSkusAsStrings() []string {
 
 	allSkus := []string{}
 
-	for _, q := range g.skuQueries {
-		allSkus = append(allSkus, string(q))
+	existing := make(map[SkuQuery]bool, len(g.loadSkuQueries)+len(g.skuQueries))
+
+	for _, normalQuery := range g.skuQueries {
+		allSkus = append(allSkus, string(normalQuery))
+
+		existing[normalQuery] = true
 	}
-	for _, q := range g.loadSkuQueries {
-		allSkus = append(allSkus, string(q))
+	for _, loadQuery := range g.loadSkuQueries {
+		if !existing[loadQuery] {
+			allSkus = append(allSkus, string(loadQuery))
+
+			existing[loadQuery] = true
+		}
 	}
 
 	return allSkus
@@ -277,6 +319,7 @@ func (g *NormalTaskGroup) AddLoadSkuQueries(queries []SkuQuery) {
 	defer g.mu.Unlock()
 
 	existing := make(map[SkuQuery]bool, len(g.loadSkuQueries))
+
 	for _, q := range g.loadSkuQueries {
 		existing[q] = true
 	}

@@ -239,6 +239,14 @@ func GetProductData(productNode ProductNode) ProductData {
 				} else {
 					identifyerStr = ""
 				}
+			} else if strings.Contains(metafieldEdge.Node.Value, "\\r\\n\\r\\n\\r\\n-\u00a0") {
+				identifyerStr = strings.Split(metafieldEdge.Node.Value, "\\r\\n\\r\\n\\r\\n-\u00a0")[1]
+
+				if strings.Contains(identifyerStr, "\\r") {
+					identifyerStr = strings.Split(identifyerStr, "\\r")[0]
+				} else {
+					identifyerStr = ""
+				}
 			}
 
 			break
@@ -251,6 +259,14 @@ func GetProductData(productNode ProductNode) ProductData {
 			break
 		}
 	}
+
+	for strings.Contains(identifyerStr, "  ") {
+		identifyerStr = strings.ReplaceAll(identifyerStr, "  ", " ")
+	}
+	identifyerStr = strings.ReplaceAll(identifyerStr, "+", " ")
+	identifyerStr = strings.ReplaceAll(identifyerStr, "-", " ")
+	identifyerStr = strings.ReplaceAll(identifyerStr, "/", " ")
+	identifyerStr = strings.ToLower(identifyerStr)
 
 	return ProductData{
 		ProductUrl:     productUrl,

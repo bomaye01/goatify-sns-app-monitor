@@ -46,10 +46,10 @@ func NewProxyHandler(proxies []*proxy) *ProxyHandler {
 }
 
 func (h *ProxyHandler) GetProxy() *proxy {
-	configMu.RLock()
-	defer configMu.RUnlock()
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	configMu.RLock()
+	defer configMu.RUnlock()
 
 	// Check for new proxyfile
 	if config.ProxyfileName != h.proxyfileName {
@@ -99,11 +99,10 @@ func (h *ProxyHandler) ReportBadProxy(p *proxy) {
 		return
 	}
 
-	configMu.RLock()
-	defer configMu.RUnlock()
 	h.mu.Lock()
 	defer h.mu.Unlock()
-
+	configMu.RLock()
+	defer configMu.RUnlock()
 	if !config.RemoveBadProxy {
 		return
 	}

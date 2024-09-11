@@ -24,7 +24,6 @@ var defaultProductStates ProductStates = ProductStates{
 	Load: ProductStatesLoad{
 		NotifiedProducts: []*ProductStateLoad{},
 		LastKnownPid:     "",
-		SkuQueries:       []string{},
 		KeywordQueries:   []string{},
 	},
 }

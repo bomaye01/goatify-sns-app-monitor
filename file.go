@@ -103,9 +103,9 @@ func writeProductStates() {
 		return
 	}
 
-	productStateFileMu.Lock()
 	statesNormalMu.Lock()
 	statesLoadMu.Lock()
+	productStateFileMu.Lock()
 	defer productStateFileMu.Unlock()
 	defer statesLoadMu.Unlock()
 	defer statesNormalMu.Unlock()

@@ -24,20 +24,12 @@ func (e *NotIncludedError) Error() string {
 	return fmt.Sprintf("%s \"%s\" not included in %s product states", e.includedType, e.includedValue, e.statesType)
 }
 
-func NormalSetState(skuStr string, productData ProductData) {
-	state := &ProductStateNormal{
-		Sku:            productData.Sku,
-		AvailableSizes: productData.AvailableSizes,
-		Price:          productData.Price,
-	}
-
+func NormalSetState(skuStr string, state *ProductStateNormal) {
 	if _, i := NormalGetState(skuStr); i >= 0 {
 		productStates.Normal.ProductStates[i] = state
 	} else {
 		productStates.Normal.ProductStates = append(productStates.Normal.ProductStates, state)
 	}
-
-	go writeProductStates()
 }
 
 func NormalUnsetState(skuStr string) error {
@@ -51,8 +43,6 @@ func NormalUnsetState(skuStr string) error {
 	}
 
 	productStates.Normal.ProductStates = append(productStates.Normal.ProductStates[:i], productStates.Normal.ProductStates[i+1:]...)
-
-	go writeProductStates()
 
 	return nil
 }
@@ -77,49 +67,6 @@ func NormalGetAllSkus() []string {
 	return skus
 }
 
-func LoadAddSku(skuStr string) error {
-	if i := LoadGetIndexSku(skuStr); i >= 0 {
-		return &AlreadyIncludedError{
-			statesType:    "load",
-			includedType:  "sku",
-			includedValue: skuStr,
-		}
-	}
-
-	productStates.Load.SkuQueries = append(productStates.Load.SkuQueries, skuStr)
-
-	go writeProductStates()
-
-	return nil
-}
-
-func LoadRemoveSku(skuStr string) error {
-	i := LoadGetIndexSku(skuStr)
-	if i == -1 {
-		return &NotIncludedError{
-			statesType:    "load",
-			includedType:  "sku",
-			includedValue: skuStr,
-		}
-	}
-
-	productStates.Load.SkuQueries = append(productStates.Load.SkuQueries[:i], productStates.Load.SkuQueries[i+1:]...)
-
-	go writeProductStates()
-
-	return nil
-}
-
-func LoadGetIndexSku(skuStr string) int {
-	for i, sku := range productStates.Load.SkuQueries {
-		if sku == skuStr {
-			return i
-		}
-	}
-
-	return -1
-}
-
 func LoadAddKwd(kwdStr string) error {
 	if i := LoadGetIndexKwd(kwdStr); i >= 0 {
 		return &AlreadyIncludedError{
@@ -130,8 +77,6 @@ func LoadAddKwd(kwdStr string) error {
 	}
 
 	productStates.Load.KeywordQueries = append(productStates.Load.KeywordQueries, kwdStr)
-
-	go writeProductStates()
 
 	return nil
 }
@@ -147,8 +92,6 @@ func LoadRemoveKwd(kwdStr string) error {
 	}
 
 	productStates.Load.KeywordQueries = append(productStates.Load.KeywordQueries[:i], productStates.Load.KeywordQueries[i+1:]...)
-
-	go writeProductStates()
 
 	return nil
 }

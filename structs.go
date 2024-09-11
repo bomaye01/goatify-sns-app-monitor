@@ -43,13 +43,11 @@ type ProductStateNormal struct {
 type ProductStatesLoad struct {
 	NotifiedProducts []*ProductStateLoad `json:"notifiedProducts"`
 	LastKnownPid     string              `json:"lastKnownPid"`
-	SkuQueries       []string            `json:"skuQueries"`
 	KeywordQueries   []string            `json:"keywordQueries"`
 }
 
 type ProductStateLoad struct {
 	Sku                    string   `json:"sku"`
-	MatchedBySku           bool     `json:"matchedBySku"`
 	MatchingKeywordQueries []string `json:"matchingKeywordQueries"`
 }
 

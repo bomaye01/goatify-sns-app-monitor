@@ -25,42 +25,30 @@ const (
 
 type LoadTaskGroup struct {
 	*BaseTaskGroup
-	normalTaskGroup *NormalTaskGroup
-	lastKnownPid    string
-	skuQueryStrings []string
-	kwdQueryStrings []string
-	skuQueries      []SkuQuery
-	kwdQueries      []KwdQuery
+	normalTaskGroup  *NormalTaskGroup
+	lastKnownPid     string
+	loopUpSkuQueries []SkuQuery
+	kwdQueries       []KwdQuery
 }
 
-func NewLoadTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandler, lastKnownPid string, skuQueryStrings []string, kwdQueryStrings []string) (*LoadTaskGroup, error) {
-	skuQueries := []SkuQuery{}
-	for _, queryStr := range skuQueryStrings {
-		queryStr = strings.ToUpper(queryStr)
-		queryStr = strings.TrimSpace(queryStr)
-
-		skuQueries = append(skuQueries, SkuQuery(queryStr))
-	}
-
+func NewLoadTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandler, lastKnownPid string, kwdQueryStrings []string) (*LoadTaskGroup, error) {
 	kwdQueries := []KwdQuery{}
 	for _, queryStr := range kwdQueryStrings {
 		queryStr = strings.ToLower(queryStr)
 		queryStr = strings.TrimSpace(queryStr)
 
-		q := createKeywordQuery(queryStr)
+		q := MakeKeywordQuery(queryStr)
 
 		kwdQueries = append(kwdQueries, q)
 	}
 
 	loadTaskGroup := &LoadTaskGroup{
-		lastKnownPid:    lastKnownPid,
-		skuQueryStrings: skuQueryStrings,
-		kwdQueryStrings: kwdQueryStrings,
-		skuQueries:      skuQueries,
-		kwdQueries:      kwdQueries,
+		lastKnownPid:     lastKnownPid,
+		loopUpSkuQueries: []SkuQuery{},
+		kwdQueries:       kwdQueries,
 	}
 
-	baseTaskGroup, err := NewBaseTaskGroup(" LOAD ", proxyHandler, webhookHandler)
+	baseTaskGroup, err := NewBaseTaskGroup("LOAD", proxyHandler, webhookHandler)
 	if err != nil {
 		return nil, fmt.Errorf("error creating base task group: %v", err)
 	}
@@ -83,60 +71,44 @@ func (g *LoadTaskGroup) LinkToNormalTaskGroup(normalTaskGroup *NormalTaskGroup) 
 	return nil
 }
 
-func (g *LoadTaskGroup) AddSkuQuery(skuStr string) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	skuStr = strings.TrimSpace(strings.ToUpper(skuStr))
-
-	g.skuQueryStrings = append(g.skuQueryStrings, skuStr)
-}
-
-func (g *LoadTaskGroup) RemoveSkuQuery(skuStr string) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	skuStr = strings.TrimSpace(strings.ToUpper(skuStr))
-
-	removeIndex := -1
-	for i, query := range g.skuQueryStrings {
-		if query == skuStr {
-			removeIndex = i
-			break
-		}
-	}
-
-	if removeIndex >= 0 {
-		g.skuQueryStrings = append(g.skuQueryStrings[:removeIndex], g.skuQueryStrings[removeIndex+1:]...)
-	}
-}
-
 func (g *LoadTaskGroup) AddKwdQuery(kwdStr string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	kwdStr = strings.TrimSpace(strings.ToUpper(kwdStr))
+	kwdStr = strings.TrimSpace(strings.ToLower(kwdStr))
 
-	g.kwdQueryStrings = append(g.kwdQueryStrings, kwdStr)
+	query := MakeKeywordQuery(kwdStr)
+
+	g.kwdQueries = append(g.kwdQueries, query)
+
+	statesLoadMu.Lock()
+	LoadAddKwd(query.rawQueryStr)
+	statesLoadMu.Unlock()
+
+	go writeProductStates()
 }
 
 func (g *LoadTaskGroup) RemoveKwdQuery(kwdStr string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	kwdStr = strings.TrimSpace(strings.ToUpper(kwdStr))
-
 	removeIndex := -1
-	for i, query := range g.kwdQueryStrings {
-		if query == kwdStr {
+	for i, query := range g.kwdQueries {
+		if query.rawQueryStr == kwdStr {
 			removeIndex = i
 			break
 		}
 	}
 
 	if removeIndex >= 0 {
-		g.kwdQueryStrings = append(g.kwdQueryStrings[:removeIndex], g.kwdQueryStrings[removeIndex+1:]...)
+		g.kwdQueries = append(g.kwdQueries[:removeIndex], g.kwdQueries[removeIndex+1:]...)
 	}
+
+	statesLoadMu.Lock()
+	LoadRemoveKwd(kwdStr)
+	statesLoadMu.Unlock()
+
+	go writeProductStates()
 }
 
 func (g *LoadTaskGroup) handleNewArrivalsResponse(res *NewArrivalsResponse) {
@@ -154,45 +126,44 @@ func (g *LoadTaskGroup) handleNewArrivalsResponse(res *NewArrivalsResponse) {
 			break
 		}
 
-		newSKUs = append(newSKUs, SkuQuery(productNode.Sku))
+		newSKUs = append(newSKUs, MakeSkuQuery(productNode.Sku))
 	}
 
 	if numNewSkus := len(newSKUs); numNewSkus > 0 {
-		g.logger.Yellow(fmt.Sprintf("%d new products loaded. Checking...", numNewSkus))
+		g.logger.Yellow(fmt.Sprintf("%d new products loaded. Requesting...", numNewSkus))
 
 		g.normalTaskGroup.AddLoadSkuQueries(newSKUs)
 
 		g.lastKnownPid = res.Response.ProductNodes[0].Pid
+
+		statesLoadMu.Lock()
+		LoadSetLastKnownPid(g.lastKnownPid)
+		statesLoadMu.Unlock()
+
+		go writeProductStates()
+	} else {
+		g.logger.Gray("No new products loaded")
 	}
 }
 
 func (g *LoadTaskGroup) handleSkuCheckResponse(productData []ProductData) {
 	g.mu.Lock()
-	defer g.mu.Lock()
+	defer g.mu.Unlock()
+
+	g.logger.Yellow(fmt.Sprintf("Checking %d new products", len(productData)))
 
 	syncRequired := false
 
 	for _, product := range productData {
-		productSku := SkuQuery(strings.ToUpper(product.Sku))
+		matchingKwdQueries := g.keywordQueriesMatchingProduct(product)
 
-		matchedBySku := false
-		matchingKwdQueries := []string{}
-
-		if g.isLoadSku(productSku) {
-			matchedBySku = true
-		} else {
-			matchingKwdQueries = g.productMatchingKeywordQueries(product)
-
-			if len(matchingKwdQueries) == 0 {
-				continue
-			}
+		if len(matchingKwdQueries) == 0 {
+			continue
 		}
 
 		g.notifyLoad(product)
 
-		g.normalTaskGroup.AddSkuQuery(product.Sku, product)
-
-		stateChanged := g.matchProductStates(product.Sku, matchedBySku, matchingKwdQueries)
+		stateChanged := g.matchProductStates(product.Sku, matchingKwdQueries)
 		if stateChanged {
 			syncRequired = true
 		}
@@ -203,29 +174,16 @@ func (g *LoadTaskGroup) handleSkuCheckResponse(productData []ProductData) {
 	}
 }
 
-func (g *LoadTaskGroup) isLoadSku(skuQuery SkuQuery) bool {
-	for _, query := range g.skuQueries {
-		if query == skuQuery {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (g *LoadTaskGroup) matchProductStates(sku string, matchedBySku bool, matchingKeywordQueries []string) bool {
+func (g *LoadTaskGroup) matchProductStates(sku string, matchingKeywordQueries []string) bool {
 	statesLoadMu.Lock()
 	defer statesLoadMu.Unlock()
 
 	stateChanged := false
+	included := false
 
 	for _, query := range productStates.Load.NotifiedProducts {
 		if query.Sku == sku {
-			if query.MatchedBySku != matchedBySku {
-				query.MatchedBySku = matchedBySku
-
-				stateChanged = true
-			}
+			included = true
 
 			if !reflect.DeepEqual(query.MatchingKeywordQueries, matchingKeywordQueries) {
 				query.MatchingKeywordQueries = matchingKeywordQueries
@@ -235,10 +193,21 @@ func (g *LoadTaskGroup) matchProductStates(sku string, matchedBySku bool, matchi
 		}
 	}
 
+	if !included {
+		stateChanged = true
+
+		newNotifiedProduct := &ProductStateLoad{
+			Sku:                    sku,
+			MatchingKeywordQueries: matchingKeywordQueries,
+		}
+
+		productStates.Load.NotifiedProducts = append(productStates.Load.NotifiedProducts, newNotifiedProduct)
+	}
+
 	return stateChanged
 }
 
-func (g *LoadTaskGroup) productMatchingKeywordQueries(product ProductData) []string {
+func (g *LoadTaskGroup) keywordQueriesMatchingProduct(product ProductData) []string {
 	matchingQueries := []string{}
 
 	for _, kwdQuery := range g.kwdQueries {
@@ -292,19 +261,25 @@ func (g *LoadTaskGroup) productMatchingKeywordQueries(product ProductData) []str
 
 func (g *LoadTaskGroup) notifyLoad(productData ProductData) {}
 
-func createKeywordQuery(kwdSearchQuery string) KwdQuery {
-	kwdGroup := KwdQuery{
-		rawQueryStr: kwdSearchQuery,
-	}
+func MakeSkuQuery(skuStr string) SkuQuery {
+	return SkuQuery(strings.TrimSpace(strings.ToUpper(skuStr)))
+}
 
-	kwdSearchQuery = fmt.Sprintf(" %s", kwdSearchQuery)
+func MakeKeywordQuery(kwdSearchQuery string) KwdQuery {
+	kwdSearchQuery = strings.TrimSpace(strings.ToLower(kwdSearchQuery))
 
 	for strings.Contains(kwdSearchQuery, "  ") {
 		kwdSearchQuery = strings.Replace(kwdSearchQuery, "  ", " ", -1)
 	}
 
-	rawInclusiveKwds := strings.Split(kwdSearchQuery, " +")
-	rawExclusiveKwds := strings.Split(kwdSearchQuery, " -")
+	kwdGroup := KwdQuery{
+		rawQueryStr: kwdSearchQuery,
+	}
+
+	kwdSplitSequence := fmt.Sprintf(" %s", kwdSearchQuery)
+
+	rawInclusiveKwds := strings.Split(kwdSplitSequence, " +")
+	rawExclusiveKwds := strings.Split(kwdSplitSequence, " -")
 
 	for _, kwd := range rawInclusiveKwds {
 		kwd = strings.ToLower(kwd)
@@ -318,6 +293,8 @@ func createKeywordQuery(kwdSearchQuery string) KwdQuery {
 			kwd = kwd[:indexDelimiter]
 		}
 		kwd = strings.TrimSpace(kwd)
+		kwd = strings.ReplaceAll(kwd, "+", " ")
+		kwd = strings.ReplaceAll(kwd, "-", " ")
 
 		if strings.Contains(kwd, "/") {
 			orKwdGroup := strings.Split(kwd, "/")
@@ -344,6 +321,8 @@ func createKeywordQuery(kwdSearchQuery string) KwdQuery {
 			kwd = kwd[:indexDelimiter]
 		}
 		kwd = strings.TrimSpace(kwd)
+		kwd = strings.ReplaceAll(kwd, "+", " ")
+		kwd = strings.ReplaceAll(kwd, "-", " ")
 
 		kwdGroup.exclusiveKeywords = append(kwdGroup.exclusiveKeywords, kwd)
 	}

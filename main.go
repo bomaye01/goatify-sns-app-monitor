@@ -12,14 +12,12 @@ import (
 	"unsafe"
 )
 
-// Lock order as below. After that, take the individual handler lock
+// Lock order as below. Before that, take the individual handler lock
 var configMu sync.RWMutex = sync.RWMutex{}
-var proxyfileMu sync.Mutex = sync.Mutex{}
-var productStateFileMu sync.Mutex = sync.Mutex{}
 var statesNormalMu sync.Mutex = sync.Mutex{}
 var statesLoadMu sync.Mutex = sync.Mutex{}
-var taskReferenceMu sync.Mutex = sync.Mutex{}
-var taskCountMu sync.Mutex = sync.Mutex{}
+var proxyfileMu sync.Mutex = sync.Mutex{}
+var productStateFileMu sync.Mutex = sync.Mutex{}
 
 var tasksWg sync.WaitGroup = sync.WaitGroup{}
 
@@ -30,13 +28,8 @@ var websocketLogger *Logger = NewLogger("WEBSOCKET")
 
 var config *Config = nil
 
-var normalTasksByProductUrl map[string][]*NormalTask = make(map[string][]*NormalTask)
-var loadTasks []*LoadTask
-
 var proxyHandler *ProxyHandler = nil
 var webhookHandler *WebhookHandler = nil
-
-var normalTaskCount int = 0
 
 func main() {
 	err := checkLogfolder()
@@ -120,7 +113,7 @@ func main() {
 		return
 	}
 
-	loadTaskGroup, err := NewLoadTaskGroup(proxyHandler, webhookHandler, productStates.Load.LastKnownPid, productStates.Load.SkuQueries, productStates.Load.KeywordQueries)
+	loadTaskGroup, err := NewLoadTaskGroup(proxyHandler, webhookHandler, productStates.Load.LastKnownPid, productStates.Load.KeywordQueries)
 	if err != nil {
 		mainLogger.Red(fmt.Sprintf("Error creating normal task group: %v", err))
 		return
@@ -152,7 +145,7 @@ func main() {
 	for i := range config.LoadTask.NumTasks {
 		tasksWg.Add(1)
 
-		taskName := fmt.Sprintf("NORMAL: %02d", i)
+		taskName := fmt.Sprintf("LOAD: %02d", i)
 		loadTask, err := NewLoadTask(taskName, loadTaskGroup)
 		if err != nil {
 			mainLogger.Red(fmt.Sprintf("Error creating initial load task %s: %v", taskName, err))
