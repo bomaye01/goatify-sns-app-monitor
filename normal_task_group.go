@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 	"strings"
 )
@@ -307,8 +306,6 @@ func (g *NormalTaskGroup) AddLoadSkuQueries(queries []SkuQuery) {
 			existing[q] = true
 		}
 	}
-
-	log.Printf("Added %d load sku queries: %v\n", len(queries), queries) // DEBUG
 }
 
 func (g *NormalTaskGroup) removeCheckedLoadSkuQueries(checkedQueries []SkuQuery) bool {
