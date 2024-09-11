@@ -87,7 +87,7 @@ func handleList(listMessage *ListMessage) ([]string, error) {
 			statesLoadMu.Lock()
 			defer statesLoadMu.Unlock()
 
-			queries := []string{}
+			queries := make([]string, len(productStates.Load.KeywordQueries))
 			copy(queries, productStates.Load.KeywordQueries)
 
 			return queries, nil
