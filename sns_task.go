@@ -248,11 +248,13 @@ func GetProductData(productNode ProductNode) ProductData {
 				} else {
 					identifyerStr = ""
 				}
-			} else if strings.Contains(metafieldEdge.Node.Value, "\\r\\n\\r\\n\\r\\n-\u00a0") {
-				identifyerStr = strings.Split(metafieldEdge.Node.Value, "\\r\\n\\r\\n\\r\\n-\u00a0")[1]
+			} else if strings.Contains(metafieldEdge.Node.Value, "\\r\\n\\r\\n-\u00a0") {
+				identifyerStr = strings.Split(metafieldEdge.Node.Value, "\\r\\n\\r\\n-\u00a0")[1]
 
 				if strings.Contains(identifyerStr, "\\r") {
 					identifyerStr = strings.Split(identifyerStr, "\\r")[0]
+				} else if strings.Contains(identifyerStr, "\u00a0") {
+					identifyerStr = strings.Split(identifyerStr, "\u00a0")[0]
 				} else {
 					identifyerStr = ""
 				}
@@ -263,19 +265,20 @@ func GetProductData(productNode ProductNode) ProductData {
 	}
 	for _, customfieldEdge := range productNode.CustomFields.Edges {
 		if customfieldEdge.Node.Name == "brand_color" {
-			identifyerStr = fmt.Sprintf("%s %s", identifyerStr, customfieldEdge.Node.Value)
+			identifyerStr = fmt.Sprintf("%s %s %s %s", productNode.Brand.Name, strings.ReplaceAll(title, sku, ""), identifyerStr, customfieldEdge.Node.Value)
 
 			break
 		}
 	}
 
-	for strings.Contains(identifyerStr, "  ") {
-		identifyerStr = strings.ReplaceAll(identifyerStr, "  ", " ")
-	}
 	identifyerStr = strings.ReplaceAll(identifyerStr, "+", " ")
 	identifyerStr = strings.ReplaceAll(identifyerStr, "-", " ")
 	identifyerStr = strings.ReplaceAll(identifyerStr, "/", " ")
+	identifyerStr = strings.ReplaceAll(identifyerStr, "|", " ")
 	identifyerStr = strings.ToLower(identifyerStr)
+	for strings.Contains(identifyerStr, "  ") {
+		identifyerStr = strings.ReplaceAll(identifyerStr, "  ", " ")
+	}
 
 	return ProductData{
 		ProductUrl:     productUrl,
