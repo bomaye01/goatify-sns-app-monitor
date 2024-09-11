@@ -24,36 +24,24 @@ func (e *NotIncludedError) Error() string {
 	return fmt.Sprintf("%s \"%s\" not included in %s product states", e.includedType, e.includedValue, e.statesType)
 }
 
-func NormalAddState(skuStr string, productData ProductData) error {
-	statesNormalMu.Lock()
-	defer statesNormalMu.Unlock()
-
-	if _, i := normalGetStateNoMu(skuStr); i >= 0 {
-		return &AlreadyIncludedError{
-			statesType:    "normal",
-			includedType:  "sku",
-			includedValue: skuStr,
-		}
-	}
-
-	addStates := &ProductStateNormal{
+func NormalSetState(skuStr string, productData ProductData) {
+	state := &ProductStateNormal{
 		Sku:            productData.Sku,
 		AvailableSizes: productData.AvailableSizes,
 		Price:          productData.Price,
 	}
 
-	productStates.Normal.ProductStates = append(productStates.Normal.ProductStates, addStates)
+	if _, i := NormalGetState(skuStr); i >= 0 {
+		productStates.Normal.ProductStates[i] = state
+	} else {
+		productStates.Normal.ProductStates = append(productStates.Normal.ProductStates, state)
+	}
 
 	go writeProductStates()
-
-	return nil
 }
 
-func NormalRemoveState(skuStr string) error {
-	statesNormalMu.Lock()
-	defer statesNormalMu.Unlock()
-
-	_, i := normalGetStateNoMu(skuStr)
+func NormalUnsetState(skuStr string) error {
+	_, i := NormalGetState(skuStr)
 	if i == -1 {
 		return &NotIncludedError{
 			statesType:    "normal",
@@ -62,7 +50,7 @@ func NormalRemoveState(skuStr string) error {
 		}
 	}
 
-	productStates.Normal.ProductStates = append(productStates.Normal.ProductStates[:i], defaultProductStates.Normal.ProductStates[i+1:]...)
+	productStates.Normal.ProductStates = append(productStates.Normal.ProductStates[:i], productStates.Normal.ProductStates[i+1:]...)
 
 	go writeProductStates()
 
@@ -70,13 +58,6 @@ func NormalRemoveState(skuStr string) error {
 }
 
 func NormalGetState(skuStr string) (*ProductStateNormal, int) {
-	statesNormalMu.Lock()
-	defer statesNormalMu.Unlock()
-
-	return normalGetStateNoMu(skuStr)
-}
-
-func normalGetStateNoMu(skuStr string) (*ProductStateNormal, int) {
 	for i, state := range productStates.Normal.ProductStates {
 		if state.Sku == skuStr {
 			return state, i
@@ -87,9 +68,6 @@ func normalGetStateNoMu(skuStr string) (*ProductStateNormal, int) {
 }
 
 func NormalGetAllSkus() []string {
-	statesNormalMu.Lock()
-	defer statesNormalMu.Unlock()
-
 	skus := []string{}
 
 	for _, state := range productStates.Normal.ProductStates {
@@ -100,10 +78,7 @@ func NormalGetAllSkus() []string {
 }
 
 func LoadAddSku(skuStr string) error {
-	statesLoadMu.Lock()
-	defer statesLoadMu.Unlock()
-
-	if i := loadGetIndexSkuNoMu(skuStr); i >= 0 {
+	if i := LoadGetIndexSku(skuStr); i >= 0 {
 		return &AlreadyIncludedError{
 			statesType:    "load",
 			includedType:  "sku",
@@ -118,49 +93,80 @@ func LoadAddSku(skuStr string) error {
 	return nil
 }
 
-func LoadRemoveSku(skuStr string) {
-	statesLoadMu.Lock()
-	defer statesLoadMu.Unlock()
+func LoadRemoveSku(skuStr string) error {
+	i := LoadGetIndexSku(skuStr)
+	if i == -1 {
+		return &NotIncludedError{
+			statesType:    "load",
+			includedType:  "sku",
+			includedValue: skuStr,
+		}
+	}
+
+	productStates.Load.SkuQueries = append(productStates.Load.SkuQueries[:i], productStates.Load.SkuQueries[i+1:]...)
+
+	go writeProductStates()
+
+	return nil
 }
 
 func LoadGetIndexSku(skuStr string) int {
-	statesLoadMu.Lock()
-	defer statesLoadMu.Unlock()
+	for i, sku := range productStates.Load.SkuQueries {
+		if sku == skuStr {
+			return i
+		}
+	}
 
-	return loadGetIndexSkuNoMu(skuStr)
+	return -1
 }
 
-func loadGetIndexSkuNoMu(skuStr string) int {
-	return -1 // Index
+func LoadAddKwd(kwdStr string) error {
+	if i := LoadGetIndexKwd(kwdStr); i >= 0 {
+		return &AlreadyIncludedError{
+			statesType:    "load",
+			includedType:  "kwd",
+			includedValue: kwdStr,
+		}
+	}
+
+	productStates.Load.KeywordQueries = append(productStates.Load.KeywordQueries, kwdStr)
+
+	go writeProductStates()
+
+	return nil
 }
 
-func LoadAddKwd(kwdStr string) {
-	statesLoadMu.Lock()
-	defer statesLoadMu.Unlock()
-}
+func LoadRemoveKwd(kwdStr string) error {
+	i := LoadGetIndexKwd(kwdStr)
+	if i == -1 {
+		return &NotIncludedError{
+			statesType:    "load",
+			includedType:  "kwd",
+			includedValue: kwdStr,
+		}
+	}
 
-func LoadRemoveKwd(kwdStr string) {
-	statesLoadMu.Lock()
-	defer statesLoadMu.Unlock()
+	productStates.Load.KeywordQueries = append(productStates.Load.KeywordQueries[:i], productStates.Load.KeywordQueries[i+1:]...)
+
+	go writeProductStates()
+
+	return nil
 }
 
 func LoadGetIndexKwd(kwdStr string) int {
-	statesLoadMu.Lock()
-	defer statesLoadMu.Unlock()
+	for i, sku := range productStates.Load.KeywordQueries {
+		if sku == kwdStr {
+			return i
+		}
+	}
 
-	return loadGetIndexKwdNoMu(kwdStr)
-}
-
-func loadGetIndexKwdNoMu(kwdStr string) int {
-	return -1 // Index
+	return -1
 }
 
 func LoadSetLastKnownPid(pid string) {
-	statesLoadMu.Lock()
-	defer statesLoadMu.Unlock()
+	productStates.Load.LastKnownPid = pid
 }
 
-func LoadGetLastKnownPid(pid string) {
-	statesLoadMu.Lock()
-	defer statesLoadMu.Unlock()
+func LoadGetLastKnownPid(pid string) string {
+	return productStates.Load.LastKnownPid
 }
