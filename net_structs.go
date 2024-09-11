@@ -49,6 +49,9 @@ type ProductsBySkusResponse struct {
 }
 
 type ProductNode struct {
+	Brand struct {
+		Name string `json:"name"`
+	} `json:"brand"`
 	Name         string `json:"name"`
 	Sku          string `json:"sku"`
 	DefaultImage struct {
