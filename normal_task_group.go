@@ -108,6 +108,7 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 	}
 
 	g.mu.Lock()
+	defer g.mu.Unlock()
 
 	syncRequired := false
 
@@ -146,7 +147,7 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 				resetStates := &ProductStateNormal{
 					Sku:            string(skuQuery),
 					Price:          "0",
-					AvailableSizes: []string{},
+					AvailableSizes: []AvailableSize{},
 				}
 
 				NormalSetState(resetStates.Sku, resetStates)
@@ -155,15 +156,17 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 		}
 	}
 
-	go g.loadTaskGroup.handleSkuCheckResponse(loadProductData)
-
-	g.removeCheckedLoadSkuQueries(checkedLoadQueries)
-
-	g.mu.Unlock()
-
 	if syncRequired {
 		go writeProductStates()
 	}
+
+	if len(loadProductData) == 0 {
+		return
+	}
+
+	go g.loadTaskGroup.handleSkuCheckResponse(loadProductData)
+
+	g.removeCheckedLoadSkuQueries(checkedLoadQueries)
 }
 
 func (g *NormalTaskGroup) matchProductStates(product ProductData) bool {
@@ -175,7 +178,7 @@ func (g *NormalTaskGroup) matchProductStates(product ProductData) bool {
 	notifySize := false
 	notifyPrice := false
 
-	newAvailableSizes := []string{}
+	newAvailableSizes := []AvailableSize{}
 	oldPrice := ""
 
 	productInStates := false
@@ -238,11 +241,11 @@ func (g *NormalTaskGroup) matchProductStates(product ProductData) bool {
 
 	// Webhook notify
 	if notifySize {
-		g.notifySize(&product)
+		g.notifySize(product)
 	}
 	if notifyPrice {
 		if oldPrice > product.Price {
-			g.notifyPrice(&product, oldPrice, product.Price)
+			g.notifyPrice(product, oldPrice)
 		}
 	}
 
@@ -332,6 +335,10 @@ func (g *NormalTaskGroup) AddLoadSkuQueries(queries []SkuQuery) {
 	}
 }
 
-func (t *NormalTaskGroup) notifySize(productData *ProductData) {}
+func (t *NormalTaskGroup) notifySize(productData ProductData) {
+	webhookHandler.NotifyRestock(productData)
+}
 
-func (t *NormalTaskGroup) notifyPrice(productData *ProductData, oldPrice string, newPrice string) {}
+func (t *NormalTaskGroup) notifyPrice(productData ProductData, oldPrice string) {
+	webhookHandler.NotifyPrice(productData, oldPrice)
+}
