@@ -31,6 +31,9 @@ var config *Config = nil
 var proxyHandler *ProxyHandler = nil
 var webhookHandler *WebhookHandler = nil
 
+var normalTaskGroup *NormalTaskGroup = nil
+var loadTaskGroup *LoadTaskGroup = nil
+
 func main() {
 	err := checkLogfolder()
 	if err != nil {
@@ -60,8 +63,8 @@ func main() {
 
 	initTerminal()
 
-	// tasksWg.Add(1)
-	// go startWebsocketServer()
+	tasksWg.Add(1)
+	go startWebsocketServer()
 
 	mainLogger.White("Starting SNS monitor...")
 
@@ -107,13 +110,13 @@ func main() {
 
 	normalSkus := NormalGetAllSkus()
 
-	normalTaskGroup, err := NewNormalTaskGroup(proxyHandler, webhookHandler, normalSkus)
+	normalTaskGroup, err = NewNormalTaskGroup(proxyHandler, webhookHandler, normalSkus)
 	if err != nil {
 		mainLogger.Red(fmt.Sprintf("Error creating normal task group: %v", err))
 		return
 	}
 
-	loadTaskGroup, err := NewLoadTaskGroup(proxyHandler, webhookHandler, productStates.Load.LastKnownPid, productStates.Load.KeywordQueries)
+	loadTaskGroup, err = NewLoadTaskGroup(proxyHandler, webhookHandler, productStates.Load.LastKnownPid, productStates.Load.KeywordQueries)
 	if err != nil {
 		mainLogger.Red(fmt.Sprintf("Error creating normal task group: %v", err))
 		return
