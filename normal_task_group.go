@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 )
@@ -115,8 +116,11 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 	checkedLoadQueries := []SkuQuery{}
 	loadProductData := []ProductData{}
 
+	includedSkuQueries := make(map[SkuQuery]bool)
 	for _, productEdge := range res.Data.Site.Search.SearchProducts.Products.Edges {
 		pSkuQuery := MakeSkuQuery(productEdge.Node.Sku)
+
+		includedSkuQueries[pSkuQuery] = true
 
 		// Determine if sku is from normal or load
 		productData := GetProductData(productEdge.Node)
@@ -126,33 +130,26 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 			if stateChanged {
 				syncRequired = true
 			}
-		}
-		if g.isLoadSku(pSkuQuery) {
+		} else if g.isLoadSku(pSkuQuery) {
 			checkedLoadQueries = append(checkedLoadQueries, pSkuQuery)
 			loadProductData = append(loadProductData, productData)
 		}
 
-		for _, skuQuery := range g.skuQueries {
-			included := false
+	}
 
-			if skuQuery == pSkuQuery {
-				included = true
-				break
+	for _, skuQuery := range g.skuQueries {
+		if !includedSkuQueries[skuQuery] {
+			syncRequired = true
+
+			statesNormalMu.Lock()
+			resetStates := &ProductStateNormal{
+				Sku:            string(skuQuery),
+				Price:          "0",
+				AvailableSizes: []AvailableSize{},
 			}
 
-			if !included {
-				// Reset states so pinged on restock
-
-				statesNormalMu.Lock()
-				resetStates := &ProductStateNormal{
-					Sku:            string(skuQuery),
-					Price:          "0",
-					AvailableSizes: []AvailableSize{},
-				}
-
-				NormalSetState(resetStates.Sku, resetStates)
-				statesNormalMu.Unlock()
-			}
+			NormalSetState(resetStates.Sku, resetStates)
+			statesNormalMu.Unlock()
 		}
 	}
 
@@ -270,29 +267,6 @@ func (g *NormalTaskGroup) isLoadSku(sku SkuQuery) bool {
 	return false
 }
 
-func (g *NormalTaskGroup) removeCheckedLoadSkuQueries(checkedQueries []SkuQuery) bool {
-	uncheckedQueries := []SkuQuery{}
-
-	for _, query := range g.loadSkuQueries {
-		checked := false
-
-		for _, checkedQuery := range checkedQueries {
-			if query == checkedQuery {
-				checked = true
-				break
-			}
-		}
-
-		if !checked {
-			uncheckedQueries = append(uncheckedQueries, query)
-		}
-	}
-
-	g.loadSkuQueries = uncheckedQueries
-
-	return false
-}
-
 func (g *NormalTaskGroup) getAllSkusAsStrings() []string {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -333,6 +307,31 @@ func (g *NormalTaskGroup) AddLoadSkuQueries(queries []SkuQuery) {
 			existing[q] = true
 		}
 	}
+
+	log.Printf("Added %d load sku queries: %v\n", len(queries), queries) // DEBUG
+}
+
+func (g *NormalTaskGroup) removeCheckedLoadSkuQueries(checkedQueries []SkuQuery) bool {
+	uncheckedQueries := []SkuQuery{}
+
+	for _, query := range g.loadSkuQueries {
+		checked := false
+
+		for _, checkedQuery := range checkedQueries {
+			if query == checkedQuery {
+				checked = true
+				break
+			}
+		}
+
+		if !checked {
+			uncheckedQueries = append(uncheckedQueries, query)
+		}
+	}
+
+	g.loadSkuQueries = uncheckedQueries
+
+	return false
 }
 
 func (t *NormalTaskGroup) notifySize(productData ProductData) {
