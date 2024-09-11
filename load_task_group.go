@@ -92,6 +92,10 @@ func (g *LoadTaskGroup) RemoveKwdQuery(kwdStr string) {
 
 	kwdStr = strings.TrimSpace(strings.ToLower(kwdStr))
 
+	for strings.Contains(kwdStr, "  ") {
+		kwdStr = strings.Replace(kwdStr, "  ", " ", -1)
+	}
+
 	removeIndex := -1
 	for i, query := range g.kwdQueries {
 		if query.rawQueryStr == kwdStr {
