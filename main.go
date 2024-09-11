@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -85,6 +86,8 @@ func main() {
 	if productStates == nil {
 		productStates = &ProductStates{}
 	}
+
+	formatProductStates()
 
 	// Load proxies
 	configMu.RLock()
@@ -223,4 +226,25 @@ func enableVirtualTerminalProcessing() {
 	getConsoleMode.Call(uintptr(handle), uintptr(unsafe.Pointer(&mode)))
 	mode |= 0x0004
 	setConsoleMode.Call(uintptr(handle), uintptr(mode))
+}
+
+func formatProductStates() {
+	statesNormalMu.Lock()
+	defer statesNormalMu.Unlock()
+	statesLoadMu.Lock()
+	defer statesLoadMu.Unlock()
+
+	for i, state := range productStates.Normal.ProductStates {
+		productStates.Normal.ProductStates[i].Sku = strings.ToUpper(strings.TrimSpace(state.Sku))
+	}
+
+	productStates.Load.LastKnownPid = strings.ToUpper(strings.TrimSpace(productStates.Load.LastKnownPid))
+
+	for i, query := range productStates.Load.KeywordQueries {
+		productStates.Load.KeywordQueries[i] = strings.ToLower(strings.TrimSpace(query))
+	}
+
+	for i, notified := range productStates.Load.NotifiedProducts {
+		productStates.Load.NotifiedProducts[i].Sku = strings.ToUpper(strings.TrimSpace(notified.Sku))
+	}
 }
