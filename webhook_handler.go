@@ -113,14 +113,14 @@ func (w *WebhookHandler) NotifyRestock(productData ProductData) {
 
 		if len(sizesValues) == 0 {
 			sizesField := discordwebhook.Field{
-				Name:   "Sizes",
+				Name:   "[Stock] Sizes",
 				Value:  "*none*",
 				Inline: true,
 			}
 			fields = append(fields, sizesField)
 		} else if len(sizesValues) == 1 {
 			sizesField := discordwebhook.Field{
-				Name:   "Sizes",
+				Name:   "[Stock] Sizes",
 				Value:  sizesValues[0],
 				Inline: true,
 			}
@@ -128,7 +128,7 @@ func (w *WebhookHandler) NotifyRestock(productData ProductData) {
 		} else {
 			for i, sizesValue := range sizesValues {
 				sizesField := discordwebhook.Field{
-					Name:   fmt.Sprintf("Sizes %d", i+1),
+					Name:   fmt.Sprintf("[Stock] Sizes %d", i+1),
 					Value:  sizesValue,
 					Inline: true,
 				}
@@ -206,14 +206,14 @@ func (w *WebhookHandler) NotifyPrice(productData ProductData, oldPrice string) {
 
 		if len(sizesValues) == 0 {
 			sizesField := discordwebhook.Field{
-				Name:   "Sizes",
+				Name:   "[Stock] Sizes",
 				Value:  "*none*",
 				Inline: true,
 			}
 			fields = append(fields, sizesField)
 		} else if len(sizesValues) == 1 {
 			sizesField := discordwebhook.Field{
-				Name:   "Sizes",
+				Name:   "[Stock] Sizes",
 				Value:  sizesValues[0],
 				Inline: true,
 			}
@@ -221,7 +221,7 @@ func (w *WebhookHandler) NotifyPrice(productData ProductData, oldPrice string) {
 		} else {
 			for i, sizesValue := range sizesValues {
 				sizesField := discordwebhook.Field{
-					Name:   fmt.Sprintf("Sizes %d", i+1),
+					Name:   fmt.Sprintf("[Stock] Sizes %d", i+1),
 					Value:  sizesValue,
 					Inline: true,
 				}
@@ -299,14 +299,14 @@ func (w *WebhookHandler) NotifyLoad(productData ProductData, matchingKwdQueries 
 
 		if len(sizesValues) == 0 {
 			sizesField := discordwebhook.Field{
-				Name:   "Sizes",
+				Name:   "[Stock] Sizes",
 				Value:  "*none*",
 				Inline: true,
 			}
 			fields = append(fields, sizesField)
 		} else if len(sizesValues) == 1 {
 			sizesField := discordwebhook.Field{
-				Name:   "Sizes",
+				Name:   "[Stock] Sizes",
 				Value:  sizesValues[0],
 				Inline: true,
 			}
@@ -314,7 +314,7 @@ func (w *WebhookHandler) NotifyLoad(productData ProductData, matchingKwdQueries 
 		} else {
 			for i, sizesValue := range sizesValues {
 				sizesField := discordwebhook.Field{
-					Name:   fmt.Sprintf("Sizes %d", i+1),
+					Name:   fmt.Sprintf("[Stock] Sizes %d", i+1),
 					Value:  sizesValue,
 					Inline: true,
 				}
