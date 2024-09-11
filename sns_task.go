@@ -207,9 +207,13 @@ func GetProductData(productNode ProductNode) ProductData {
 	title := productNode.Name
 
 	availableSizes := []AvailableSize{}
+	sizesMetafieldExisting := false
+
 	for _, variantEdge := range productNode.Variants.Edges {
 		for _, metafieldEdge := range variantEdge.Node.Metafields.Edges {
 			if metafieldEdge.Node.Key == "sizes" {
+				sizesMetafieldExisting = true
+
 				if strings.Contains(metafieldEdge.Node.Value, "\"EU\":\"") {
 					euSizeValue := strings.Split(metafieldEdge.Node.Value, "\"EU\":\"")[1]
 
@@ -225,12 +229,52 @@ func GetProductData(productNode ProductNode) ProductData {
 
 						availableSizes = append(availableSizes, availableSize)
 					}
+				} else if strings.Contains(metafieldEdge.Node.Value, "\"US\":\"") {
+					euSizeValue := strings.Split(metafieldEdge.Node.Value, "\"US\":\"")[1]
+
+					if strings.Contains(euSizeValue, "\"") {
+						euSizeValue = strings.Split(euSizeValue, "\"")[0]
+
+						euSizeValue = fmt.Sprintf("US %s", euSizeValue)
+
+						availableSize := AvailableSize{
+							Name:          euSizeValue,
+							AmountInStock: variantEdge.Node.Inventory.Aggregrated.AvailableToSell,
+						}
+
+						availableSizes = append(availableSizes, availableSize)
+					}
+				} else if strings.Contains(metafieldEdge.Node.Value, "\"UK\":\"") {
+					euSizeValue := strings.Split(metafieldEdge.Node.Value, "\"UK\":\"")[1]
+
+					if strings.Contains(euSizeValue, "\"") {
+						euSizeValue = strings.Split(euSizeValue, "\"")[0]
+
+						euSizeValue = fmt.Sprintf("UK %s", euSizeValue)
+
+						availableSize := AvailableSize{
+							Name:          euSizeValue,
+							AmountInStock: variantEdge.Node.Inventory.Aggregrated.AvailableToSell,
+						}
+
+						availableSizes = append(availableSizes, availableSize)
+					}
 				}
 
 				break
 			}
 		}
 	}
+
+	if !sizesMetafieldExisting && len(productNode.Variants.Edges) == 1 {
+		availableSize := AvailableSize{
+			Name:          "One-Size",
+			AmountInStock: productNode.Variants.Edges[0].Node.Inventory.Aggregrated.AvailableToSell,
+		}
+
+		availableSizes = append(availableSizes, availableSize)
+	}
+
 	sortAvailableSizes(availableSizes)
 
 	price := strconv.Itoa(productNode.Prices.Price.Value)
