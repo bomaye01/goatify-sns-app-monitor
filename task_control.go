@@ -98,7 +98,7 @@ func handleList(listMessage *ListMessage) ([]string, error) {
 }
 
 func addSkuQuery(skuQuery string) {
-	normalTaskGroup.AddSkuQuery(skuQuery, ProductData{})
+	normalTaskGroup.AddSkuQuery(skuQuery)
 }
 
 func addKwdQuery(kwdQuery string) {

@@ -9,10 +9,9 @@ import (
 
 type NormalTaskGroup struct {
 	*BaseTaskGroup
-	loadTaskGroup   *LoadTaskGroup
-	skuQueryStrings []string
-	skuQueries      []SkuQuery
-	loadSkuQueries  []SkuQuery
+	loadTaskGroup  *LoadTaskGroup
+	skuQueries     []SkuQuery
+	loadSkuQueries []SkuQuery
 }
 
 func NewNormalTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandler, skuQueryStrings []string) (*NormalTaskGroup, error) {
@@ -25,9 +24,8 @@ func NewNormalTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandl
 	}
 
 	normalTaskGroup := &NormalTaskGroup{
-		skuQueryStrings: skuQueryStrings,
-		skuQueries:      skuQueries,
-		loadSkuQueries:  []SkuQuery{},
+		skuQueries:     skuQueries,
+		loadSkuQueries: []SkuQuery{},
 	}
 
 	baseTaskGroup, err := NewBaseTaskGroup("NORMAL", proxyHandler, webhookHandler)
@@ -53,19 +51,18 @@ func (g *NormalTaskGroup) LinkToLoadTaskGroup(loadTaskGroup *LoadTaskGroup) erro
 	return nil
 }
 
-func (g *NormalTaskGroup) AddSkuQuery(skuStr string, productData ProductData) {
+func (g *NormalTaskGroup) AddSkuQuery(skuStr string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
 	skuStr = strings.TrimSpace(strings.ToUpper(skuStr))
 
-	g.skuQueryStrings = append(g.skuQueryStrings, skuStr)
 	g.skuQueries = append(g.skuQueries, SkuQuery(skuStr))
 
 	newState := &ProductStateNormal{
-		Sku:            productData.Sku,
-		AvailableSizes: productData.AvailableSizes,
-		Price:          productData.Price,
+		Sku:            skuStr,
+		AvailableSizes: []AvailableSize{},
+		Price:          "",
 	}
 
 	statesNormalMu.Lock()
@@ -79,11 +76,11 @@ func (g *NormalTaskGroup) RemoveSkuQuery(skuStr string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	skuStr = strings.TrimSpace(strings.ToUpper(skuStr))
+	skuQuery := MakeSkuQuery(skuStr)
 
 	removeIndex := -1
-	for i, query := range g.skuQueryStrings {
-		if query == skuStr {
+	for i, query := range g.skuQueries {
+		if query == skuQuery {
 			removeIndex = i
 			break
 		}
@@ -93,7 +90,7 @@ func (g *NormalTaskGroup) RemoveSkuQuery(skuStr string) {
 		return
 	}
 
-	g.skuQueryStrings = append(g.skuQueryStrings[:removeIndex], g.skuQueryStrings[removeIndex+1:]...)
+	g.skuQueries = append(g.skuQueries[:removeIndex], g.skuQueries[removeIndex+1:]...)
 
 	statesNormalMu.Lock()
 	NormalUnsetState(skuStr)
