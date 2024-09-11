@@ -153,6 +153,9 @@ type ProductNode struct {
 					Typename  string      `json:"__typename"`
 				} `json:"prices"`
 				Inventory struct {
+					Aggregrated struct {
+						AvailableToSell int `json:"availableToSell"`
+					} `json:"aggregated"`
 					ByLocation struct {
 						Edges    []interface{} `json:"edges"`
 						Typename string        `json:"__typename"`
