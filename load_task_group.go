@@ -90,6 +90,8 @@ func (g *LoadTaskGroup) RemoveKwdQuery(kwdStr string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
+	kwdStr = strings.TrimSpace(strings.ToLower(kwdStr))
+
 	removeIndex := -1
 	for i, query := range g.kwdQueries {
 		if query.rawQueryStr == kwdStr {
