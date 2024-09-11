@@ -161,6 +161,7 @@ func (g *LoadTaskGroup) handleSkuCheckResponse(productData []ProductData) {
 			continue
 		}
 
+		g.logger.Green(fmt.Sprintf("%s loaded. Matching keywords: %v", product.Sku, matchingKwdQueries))
 		g.notifyLoad(product, matchingKwdQueries)
 
 		stateChanged := g.matchProductStates(product.Sku, matchingKwdQueries)
