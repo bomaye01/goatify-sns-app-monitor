@@ -65,7 +65,7 @@ func (w *WebhookHandler) NotifyRestock(productData ProductData) {
 	configMu.RLock()
 	defer configMu.RUnlock()
 
-	for _, webhookUrl := range config.LoadTask.WebhookUrls {
+	for _, webhookUrl := range config.NormalTask.WebhookUrls {
 		sizesValues := []string{}
 		sizesValuesCount := 0
 		if len(productData.AvailableSizes) > 25 {
@@ -158,7 +158,7 @@ func (w *WebhookHandler) NotifyPrice(productData ProductData, oldPrice string) {
 	configMu.RLock()
 	defer configMu.RUnlock()
 
-	for _, webhookUrl := range config.LoadTask.WebhookUrls {
+	for _, webhookUrl := range config.NormalTask.WebhookUrls {
 		sizesValues := []string{}
 		sizesValuesCount := 0
 		if len(productData.AvailableSizes) > 25 {
