@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -22,7 +23,10 @@ func startWebsocketServer() {
 	http.HandleFunc("/goatify-monitor-control", handleWebSocket)
 
 	// Start the server
-	port := "3000"
+	configMu.Lock()
+	port := strconv.Itoa(config.WebsocketPort)
+	configMu.Unlock()
+
 	websocketLogger.White(fmt.Sprintf("Starting server on port %s", port))
 	err := http.ListenAndServe(":"+port, nil)
 	if err != nil {
