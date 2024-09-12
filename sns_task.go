@@ -210,6 +210,10 @@ func GetProductData(productNode ProductNode) ProductData {
 	sizesMetafieldExisting := false
 
 	for _, variantEdge := range productNode.Variants.Edges {
+		if variantEdge.Node.Inventory.Aggregrated.AvailableToSell == 0 {
+			continue
+		}
+
 		for _, metafieldEdge := range variantEdge.Node.Metafields.Edges {
 			if metafieldEdge.Node.Key == "sizes" {
 				sizesMetafieldExisting = true
