@@ -54,6 +54,7 @@ type ProductNode struct {
 	} `json:"brand"`
 	Name         string `json:"name"`
 	Sku          string `json:"sku"`
+	Path         string `json:"path"`
 	DefaultImage struct {
 		URL string `json:"url"`
 	} `json:"defaultImage"`
