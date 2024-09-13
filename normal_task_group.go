@@ -98,7 +98,7 @@ func (g *NormalTaskGroup) RemoveSkuQuery(skuStr string) {
 }
 
 func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusResponse) {
-	if res == nil || len(res.Data.Site.Search.SearchProducts.Products.Edges) == 0 || g.loadTaskGroup == nil {
+	if res == nil || len(*res) == 0 || g.loadTaskGroup == nil {
 		return
 	}
 
@@ -111,13 +111,13 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 	loadProductData := []ProductData{}
 
 	includedSkuQueries := make(map[SkuQuery]bool)
-	for _, productEdge := range res.Data.Site.Search.SearchProducts.Products.Edges {
-		pSkuQuery := MakeSkuQuery(productEdge.Node.Sku)
+	for _, productEdge := range *res {
+		pSkuQuery := MakeSkuQuery(productEdge.Sku)
 
 		includedSkuQueries[pSkuQuery] = true
 
 		// Determine if sku is from normal or load
-		productData := GetProductData(productEdge.Node)
+		productData := GetProductData(productEdge)
 
 		if g.isNormalSku(pSkuQuery) {
 			stateChanged := g.matchProductStates(productData)
