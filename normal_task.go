@@ -42,17 +42,17 @@ func (t *NormalTask) loopMonitor() {
 
 	t.rotateProxy()
 
-	allSkus := t.group.getAllSkusAsStrings()
+	skus := t.group.getNextSkus()
 
-	if len(allSkus) == 0 {
+	if len(skus) == 0 {
 		return
 	}
 
-	res, err := t.getProductsBySku(allSkus)
+	res, err := t.getProductsBySku(skus)
 	if err != nil {
 		t.logger.Red(err)
 		return
 	}
 
-	go t.group.checkProductsBySkusResponse(res)
+	go t.group.checkProductsBySkusResponse(res, skus)
 }
