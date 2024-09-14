@@ -10,6 +10,7 @@ import (
 type NormalTaskGroup struct {
 	*BaseTaskGroup
 	loadTaskGroup  *LoadTaskGroup
+	lastCheckedPos int
 	skuQueries     []SkuQuery
 	loadSkuQueries []SkuQuery
 }
@@ -97,8 +98,8 @@ func (g *NormalTaskGroup) RemoveSkuQuery(skuStr string) {
 	go writeProductStates()
 }
 
-func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusResponse) {
-	if res == nil || len(*res) == 0 || g.loadTaskGroup == nil {
+func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusResponse, skusInRequest []string) {
+	if res == nil || g.loadTaskGroup == nil {
 		return
 	}
 
@@ -128,11 +129,12 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 			checkedLoadQueries = append(checkedLoadQueries, pSkuQuery)
 			loadProductData = append(loadProductData, productData)
 		}
-
 	}
 
-	for _, skuQuery := range g.skuQueries {
-		if !includedSkuQueries[skuQuery] {
+	for _, skuQuery := range skusInRequest {
+		if !includedSkuQueries[MakeSkuQuery(skuQuery)] {
+			g.logger.Gray(fmt.Sprintf("%s: Not loaded", string(skuQuery)))
+
 			syncRequired = true
 
 			statesNormalMu.Lock()
@@ -192,9 +194,7 @@ func (g *NormalTaskGroup) matchProductStates(product ProductData) bool {
 			if state.Price != product.Price {
 				stateChange = true
 
-				if product.Price < state.Price {
-					notifyPrice = true
-				}
+				notifyPrice = true
 
 				oldPrice = state.Price
 
@@ -261,28 +261,58 @@ func (g *NormalTaskGroup) isLoadSku(sku SkuQuery) bool {
 	return false
 }
 
-func (g *NormalTaskGroup) getAllSkusAsStrings() []string {
+func (g *NormalTaskGroup) getNextSkus() []string {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	allSkus := []string{}
+	nextSkus := []string{}
 
 	existing := make(map[SkuQuery]bool, len(g.loadSkuQueries)+len(g.skuQueries))
 
-	for _, normalQuery := range g.skuQueries {
-		allSkus = append(allSkus, string(normalQuery))
-
-		existing[normalQuery] = true
-	}
+	// Always add load first to prevent starvation
 	for _, loadQuery := range g.loadSkuQueries {
 		if !existing[loadQuery] {
-			allSkus = append(allSkus, string(loadQuery))
+			nextSkus = append(nextSkus, string(loadQuery))
 
 			existing[loadQuery] = true
 		}
+
+		if len(nextSkus) == 10 {
+			return nextSkus
+		}
 	}
 
-	return allSkus
+	// Then add normal skus
+	nextPos := g.lastCheckedPos + 1
+
+	for len(nextSkus) < 10 && len(g.skuQueries) > 0 {
+		// Round robin
+		if nextPos >= len(g.skuQueries) {
+			nextPos = nextPos % len(g.skuQueries)
+		}
+
+		normalQuery := g.skuQueries[nextPos]
+
+		if !existing[normalQuery] {
+			nextSkus = append(nextSkus, string(normalQuery))
+
+			existing[normalQuery] = true
+		}
+
+		nextPos += 1
+
+		// Break condition
+		if nextPos == g.lastCheckedPos {
+			break
+		}
+	}
+
+	if nextPos == 0 {
+		nextPos = len(g.skuQueries)
+	}
+	g.lastCheckedPos = nextPos - 1
+
+	return nextSkus
 }
 
 func (g *NormalTaskGroup) AddLoadSkuQueries(queries []SkuQuery) {
