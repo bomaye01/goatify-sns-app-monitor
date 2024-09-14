@@ -230,60 +230,22 @@ func GetProductData(productNode ProductNode) ProductData {
 			continue
 		}
 
-		for _, metafieldEdge := range variantEdge.Node.Metafields.Edges {
-			if metafieldEdge.Node.Key == "sizes" {
-				sizesMetafieldExisting = true
-
-				if strings.Contains(metafieldEdge.Node.Value, "\"EU\":\"") {
-					euSizeValue := strings.Split(metafieldEdge.Node.Value, "\"EU\":\"")[1]
-
-					if strings.Contains(euSizeValue, "\"") {
-						euSizeValue = strings.Split(euSizeValue, "\"")[0]
-
-						euSizeValue = fmt.Sprintf("EU %s", euSizeValue)
-
-						availableSize := AvailableSize{
-							Name:          euSizeValue,
-							AmountInStock: variantEdge.Node.Inventory.Aggregated.AvailableToSell,
-						}
-
-						availableSizes = append(availableSizes, availableSize)
-					}
-				} else if strings.Contains(metafieldEdge.Node.Value, "\"US\":\"") {
-					euSizeValue := strings.Split(metafieldEdge.Node.Value, "\"US\":\"")[1]
-
-					if strings.Contains(euSizeValue, "\"") {
-						euSizeValue = strings.Split(euSizeValue, "\"")[0]
-
-						euSizeValue = fmt.Sprintf("US %s", euSizeValue)
-
-						availableSize := AvailableSize{
-							Name:          euSizeValue,
-							AmountInStock: variantEdge.Node.Inventory.Aggregated.AvailableToSell,
-						}
-
-						availableSizes = append(availableSizes, availableSize)
-					}
-				} else if strings.Contains(metafieldEdge.Node.Value, "\"UK\":\"") {
-					euSizeValue := strings.Split(metafieldEdge.Node.Value, "\"UK\":\"")[1]
-
-					if strings.Contains(euSizeValue, "\"") {
-						euSizeValue = strings.Split(euSizeValue, "\"")[0]
-
-						euSizeValue = fmt.Sprintf("UK %s", euSizeValue)
-
-						availableSize := AvailableSize{
-							Name:          euSizeValue,
-							AmountInStock: variantEdge.Node.Inventory.Aggregated.AvailableToSell,
-						}
-
-						availableSizes = append(availableSizes, availableSize)
-					}
-				}
-
-				break
-			}
+		if len(variantEdge.Node.Options.Edges) != 1 {
+			continue
 		}
+		optionEdge := variantEdge.Node.Options.Edges[0]
+
+		if len(optionEdge.Node.Values.Edges) != 1 {
+			continue
+		}
+		optionValueEdge := optionEdge.Node.Values.Edges[0]
+
+		availableSize := AvailableSize{
+			Name:          optionValueEdge.Node.Label,
+			AmountInStock: variantEdge.Node.Inventory.Aggregated.AvailableToSell,
+		}
+
+		availableSizes = append(availableSizes, availableSize)
 	}
 
 	if !sizesMetafieldExisting && len(productNode.Variants.Edges) == 1 {
