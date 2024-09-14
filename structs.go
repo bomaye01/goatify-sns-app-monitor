@@ -2,15 +2,19 @@ package main
 
 // config.json
 type Config struct {
-	NormalTask          NormalTaskConfig `json:"normal"`
-	LoadTask            LoadTaskConfig   `json:"load"`
-	MaxTasksPerProxy    int              `json:"maxTasksPerProxy"`
-	ProxyfileName       string           `json:"proxyfile"`
-	WebhookErrorTimeout int              `json:"webhookErrorTimeoutInMilliseconds"`
-	RemoveBadProxy      bool             `json:"autoRemoveBadProxy"`
-	InstanceName        string           `json:"instanceName"`
-	WebsocketPathSuffix string           `json:"websocketPathSuffix"`
-	WebsocketPort       int              `json:"websocketPort"`
+	NormalTask      NormalTaskConfig `json:"normal"`
+	LoadTask        LoadTaskConfig   `json:"load"`
+	DiscordPresence struct {
+		AvatarUrl  string `json:"avatarUrl"`
+		EmbedColor int    `json:"embedColor"`
+	} `json:"discordPresence"`
+	MaxTasksPerProxy    int    `json:"maxTasksPerProxy"`
+	ProxyfileName       string `json:"proxyfile"`
+	WebhookErrorTimeout int    `json:"webhookErrorTimeoutInMilliseconds"`
+	RemoveBadProxy      bool   `json:"autoRemoveBadProxy"`
+	InstanceName        string `json:"instanceName"`
+	WebsocketPathSuffix string `json:"websocketPathSuffix"`
+	WebsocketPort       int    `json:"websocketPort"`
 }
 
 type NormalTaskConfig struct {

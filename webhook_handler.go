@@ -13,6 +13,11 @@ import (
 	discordwebhook "github.com/bensch777/discord-webhook-golang"
 )
 
+const (
+	DEFAULT_ICON_URL = "https://cdn.discordapp.com/attachments/1008077694409379962/1169271584805097543/0a4de578debc18ad1448c3bb14197df1.png?ex=66db0805&is=66d9b685&hm=10bcd145748d5ead3fe4ff8876b5ec7578830915862176d50374c43ea65e695f&"
+	DEFAULT_COLOR    = 10104109
+)
+
 type WebhookHandler struct {
 	wg     sync.WaitGroup
 	reqCh  chan *webhookRequest
@@ -360,9 +365,23 @@ func (w *WebhookHandler) NotifyLoad(productData ProductData, matchingKwdQueries 
 }
 
 func (w *WebhookHandler) createEmbed(req *webhookRequest) (*discordwebhook.Embed, error) {
+	configMu.RLock()
+
+	avatarUrl := DEFAULT_ICON_URL
+	if config.DiscordPresence.AvatarUrl != "" {
+		avatarUrl = config.DiscordPresence.AvatarUrl
+	}
+
+	color := DEFAULT_COLOR
+	if config.DiscordPresence.EmbedColor != 0 {
+		color = config.DiscordPresence.EmbedColor
+	}
+
+	configMu.RUnlock()
+
 	embed := discordwebhook.Embed{
 		Title:     req.productData.Title,
-		Color:     10104109,
+		Color:     color,
 		Url:       req.productData.ProductUrl,
 		Timestamp: req.time,
 		Thumbnail: discordwebhook.Thumbnail{
@@ -371,7 +390,7 @@ func (w *WebhookHandler) createEmbed(req *webhookRequest) (*discordwebhook.Embed
 		Fields: req.fields,
 		Footer: discordwebhook.Footer{
 			Text:     "Goatify Bricks • Sneakersnstuff",
-			Icon_url: "https://cdn.discordapp.com/attachments/1008077694409379962/1169271584805097543/0a4de578debc18ad1448c3bb14197df1.png?ex=66db0805&is=66d9b685&hm=10bcd145748d5ead3fe4ff8876b5ec7578830915862176d50374c43ea65e695f&",
+			Icon_url: avatarUrl,
 		},
 	}
 
@@ -379,9 +398,18 @@ func (w *WebhookHandler) createEmbed(req *webhookRequest) (*discordwebhook.Embed
 }
 
 func (w *WebhookHandler) sendEmbed(link string, embed *discordwebhook.Embed) {
+	configMu.RLock()
+
+	avatarUrl := DEFAULT_ICON_URL
+	if config.DiscordPresence.AvatarUrl != "" {
+		avatarUrl = config.DiscordPresence.AvatarUrl
+	}
+
+	configMu.RUnlock()
+
 	hook := discordwebhook.Hook{
 		Username:   "Sneakersnstuff",
-		Avatar_url: "https://cdn.discordapp.com/attachments/1008077694409379962/1169271584805097543/0a4de578debc18ad1448c3bb14197df1.png?ex=66db0805&is=66d9b685&hm=10bcd145748d5ead3fe4ff8876b5ec7578830915862176d50374c43ea65e695f&",
+		Avatar_url: avatarUrl,
 		Embeds:     []discordwebhook.Embed{*embed},
 	}
 
