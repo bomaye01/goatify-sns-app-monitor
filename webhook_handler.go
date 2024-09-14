@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	DEFAULT_ICON_URL = "https://cdn.discordapp.com/attachments/1008077694409379962/1169271584805097543/0a4de578debc18ad1448c3bb14197df1.png?ex=66db0805&is=66d9b685&hm=10bcd145748d5ead3fe4ff8876b5ec7578830915862176d50374c43ea65e695f&"
-	DEFAULT_COLOR    = 10104109
+	DEFAULT_ICON_URL    = "https://cdn.discordapp.com/attachments/1008077694409379962/1169271584805097543/0a4de578debc18ad1448c3bb14197df1.png?ex=66db0805&is=66d9b685&hm=10bcd145748d5ead3fe4ff8876b5ec7578830915862176d50374c43ea65e695f&"
+	DEFAULT_COLOR       = 10104109
+	DEFAULT_FOOTER_TEXT = "Monitor by linus"
 )
 
 type WebhookHandler struct {
@@ -76,7 +77,7 @@ func (w *WebhookHandler) NotifyRestock(productData ProductData) {
 		if len(productData.AvailableSizes) > 25 {
 			count := 0
 			for _, availableSize := range productData.AvailableSizes {
-				strVal := fmt.Sprintf("[%d] %s", availableSize.AmountInStock, availableSize.Name)
+				strVal := fmt.Sprintf("%s [%d]", availableSize.Name, availableSize.AmountInStock)
 
 				if count == 25 {
 					count = 0
@@ -90,7 +91,7 @@ func (w *WebhookHandler) NotifyRestock(productData ProductData) {
 		} else {
 			finalStr := ""
 			for _, availableSize := range productData.AvailableSizes {
-				strVal := fmt.Sprintf("[%d] %s", availableSize.AmountInStock, availableSize.Name)
+				strVal := fmt.Sprintf("%s [%d]", availableSize.Name, availableSize.AmountInStock)
 
 				finalStr = fmt.Sprintf("%s\n%s", finalStr, strVal)
 			}
@@ -118,14 +119,14 @@ func (w *WebhookHandler) NotifyRestock(productData ProductData) {
 
 		if len(sizesValues) == 0 {
 			sizesField := discordwebhook.Field{
-				Name:   "[Stock] Sizes",
+				Name:   "Sizes",
 				Value:  "*none*",
 				Inline: true,
 			}
 			fields = append(fields, sizesField)
 		} else if len(sizesValues) == 1 {
 			sizesField := discordwebhook.Field{
-				Name:   "[Stock] Sizes",
+				Name:   "Sizes",
 				Value:  sizesValues[0],
 				Inline: true,
 			}
@@ -133,7 +134,7 @@ func (w *WebhookHandler) NotifyRestock(productData ProductData) {
 		} else {
 			for i, sizesValue := range sizesValues {
 				sizesField := discordwebhook.Field{
-					Name:   fmt.Sprintf("[Stock] Sizes %d", i+1),
+					Name:   fmt.Sprintf("Sizes %d", i+1),
 					Value:  sizesValue,
 					Inline: true,
 				}
@@ -169,7 +170,7 @@ func (w *WebhookHandler) NotifyPrice(productData ProductData, oldPrice string) {
 		if len(productData.AvailableSizes) > 25 {
 			count := 0
 			for _, availableSize := range productData.AvailableSizes {
-				strVal := fmt.Sprintf("[%d] %s", availableSize.AmountInStock, availableSize.Name)
+				strVal := fmt.Sprintf("%s [%d]", availableSize.Name, availableSize.AmountInStock)
 
 				if count == 25 {
 					count = 0
@@ -183,7 +184,7 @@ func (w *WebhookHandler) NotifyPrice(productData ProductData, oldPrice string) {
 		} else {
 			finalStr := ""
 			for _, availableSize := range productData.AvailableSizes {
-				strVal := fmt.Sprintf("[%d] %s", availableSize.AmountInStock, availableSize.Name)
+				strVal := fmt.Sprintf("%s [%d]", availableSize.Name, availableSize.AmountInStock)
 
 				finalStr = fmt.Sprintf("%s\n%s", finalStr, strVal)
 			}
@@ -211,14 +212,14 @@ func (w *WebhookHandler) NotifyPrice(productData ProductData, oldPrice string) {
 
 		if len(sizesValues) == 0 {
 			sizesField := discordwebhook.Field{
-				Name:   "[Stock] Sizes",
+				Name:   "Sizes",
 				Value:  "*none*",
 				Inline: true,
 			}
 			fields = append(fields, sizesField)
 		} else if len(sizesValues) == 1 {
 			sizesField := discordwebhook.Field{
-				Name:   "[Stock] Sizes",
+				Name:   "Sizes",
 				Value:  sizesValues[0],
 				Inline: true,
 			}
@@ -226,7 +227,7 @@ func (w *WebhookHandler) NotifyPrice(productData ProductData, oldPrice string) {
 		} else {
 			for i, sizesValue := range sizesValues {
 				sizesField := discordwebhook.Field{
-					Name:   fmt.Sprintf("[Stock] Sizes %d", i+1),
+					Name:   fmt.Sprintf("Sizes %d", i+1),
 					Value:  sizesValue,
 					Inline: true,
 				}
@@ -262,7 +263,7 @@ func (w *WebhookHandler) NotifyLoad(productData ProductData, matchingKwdQueries 
 		if len(productData.AvailableSizes) > 25 {
 			count := 0
 			for _, availableSize := range productData.AvailableSizes {
-				strVal := fmt.Sprintf("[%d] %s", availableSize.AmountInStock, availableSize.Name)
+				strVal := fmt.Sprintf("%s [%d]", availableSize.Name, availableSize.AmountInStock)
 
 				if count == 25 {
 					count = 0
@@ -276,7 +277,7 @@ func (w *WebhookHandler) NotifyLoad(productData ProductData, matchingKwdQueries 
 		} else {
 			finalStr := ""
 			for _, availableSize := range productData.AvailableSizes {
-				strVal := fmt.Sprintf("[%d] %s", availableSize.AmountInStock, availableSize.Name)
+				strVal := fmt.Sprintf("%s [%d]", availableSize.Name, availableSize.AmountInStock)
 
 				finalStr = fmt.Sprintf("%s\n%s", finalStr, strVal)
 			}
@@ -304,14 +305,14 @@ func (w *WebhookHandler) NotifyLoad(productData ProductData, matchingKwdQueries 
 
 		if len(sizesValues) == 0 {
 			sizesField := discordwebhook.Field{
-				Name:   "[Stock] Sizes",
+				Name:   "Sizes",
 				Value:  "*none*",
 				Inline: true,
 			}
 			fields = append(fields, sizesField)
 		} else if len(sizesValues) == 1 {
 			sizesField := discordwebhook.Field{
-				Name:   "[Stock] Sizes",
+				Name:   "Sizes",
 				Value:  sizesValues[0],
 				Inline: true,
 			}
@@ -319,7 +320,7 @@ func (w *WebhookHandler) NotifyLoad(productData ProductData, matchingKwdQueries 
 		} else {
 			for i, sizesValue := range sizesValues {
 				sizesField := discordwebhook.Field{
-					Name:   fmt.Sprintf("[Stock] Sizes %d", i+1),
+					Name:   fmt.Sprintf("Sizes %d", i+1),
 					Value:  sizesValue,
 					Inline: true,
 				}
@@ -377,6 +378,11 @@ func (w *WebhookHandler) createEmbed(req *webhookRequest) (*discordwebhook.Embed
 		color = config.DiscordPresence.EmbedColor
 	}
 
+	footerText := DEFAULT_FOOTER_TEXT
+	if config.DiscordPresence.FooterText != "" {
+		footerText = config.DiscordPresence.FooterText
+	}
+
 	configMu.RUnlock()
 
 	embed := discordwebhook.Embed{
@@ -389,7 +395,7 @@ func (w *WebhookHandler) createEmbed(req *webhookRequest) (*discordwebhook.Embed
 		},
 		Fields: req.fields,
 		Footer: discordwebhook.Footer{
-			Text:     "Goatify Bricks • Sneakersnstuff",
+			Text:     fmt.Sprintf("%s • Sneakersnstuff", footerText),
 			Icon_url: avatarUrl,
 		},
 	}

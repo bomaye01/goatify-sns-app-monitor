@@ -7,6 +7,7 @@ type Config struct {
 	DiscordPresence struct {
 		AvatarUrl  string `json:"avatarUrl"`
 		EmbedColor int    `json:"embedColor"`
+		FooterText string `json:"footerText"`
 	} `json:"discordPresence"`
 	MaxTasksPerProxy    int    `json:"maxTasksPerProxy"`
 	ProxyfileName       string `json:"proxyfile"`
