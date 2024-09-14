@@ -9,6 +9,7 @@ type Config struct {
 	WebhookErrorTimeout int              `json:"webhookErrorTimeoutInMilliseconds"`
 	RemoveBadProxy      bool             `json:"autoRemoveBadProxy"`
 	InstanceName        string           `json:"instanceName"`
+	WebsocketPathSuffix string           `json:"websocketPathSuffix"`
 	WebsocketPort       int              `json:"websocketPort"`
 }
 

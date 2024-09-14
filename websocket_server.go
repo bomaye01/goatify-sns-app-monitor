@@ -20,10 +20,10 @@ type Client struct {
 func startWebsocketServer() {
 	defer tasksWg.Done()
 
-	http.HandleFunc("/goatify-monitor-control", handleWebSocket)
+	configMu.Lock()
+	http.HandleFunc(fmt.Sprintf("/goatify-monitor-control-%s", config.WebsocketPathSuffix), handleWebSocket)
 
 	// Start the server
-	configMu.Lock()
 	port := strconv.Itoa(config.WebsocketPort)
 	configMu.Unlock()
 
