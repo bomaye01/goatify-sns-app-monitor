@@ -220,6 +220,11 @@ func GetProductData(productNode ProductNode) ProductData {
 	sku := productNode.Sku
 	productUrl := fmt.Sprintf("https://www.sneakersnstuff.com/de%s", productNode.Path)
 
+	availableForSale := false
+	if productNode.AvailabilityV2.Status == "Available" {
+		availableForSale = true
+	}
+
 	title := productNode.Name
 
 	availableSizes := []AvailableSize{}
@@ -307,13 +312,14 @@ func GetProductData(productNode ProductNode) ProductData {
 	}
 
 	return ProductData{
-		ProductUrl:     productUrl,
-		Title:          title,
-		Sku:            sku,
-		AvailableSizes: availableSizes,
-		Price:          price,
-		ImageUrl:       imageUrl,
-		IdentifyerStr:  identifyerStr,
+		ProductUrl:       productUrl,
+		Title:            title,
+		Sku:              sku,
+		AvailableForSale: availableForSale,
+		AvailableSizes:   availableSizes,
+		Price:            price,
+		ImageUrl:         imageUrl,
+		IdentifyerStr:    identifyerStr,
 	}
 }
 

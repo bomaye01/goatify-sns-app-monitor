@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -115,28 +116,35 @@ func (w *WebhookHandler) NotifyRestock(productData ProductData) {
 				Value:  "RESTOCK",
 				Inline: true,
 			},
+			{
+				Name:   "AVAILABLE",
+				Value:  strconv.FormatBool(productData.AvailableForSale),
+				Inline: true,
+			},
 		}
 
-		if len(sizesValues) == 0 {
-			sizesField := discordwebhook.Field{
-				Name:   "Sizes",
-				Value:  "*none*",
-				Inline: true,
+		if len(sizesValues) == 1 {
+			if sizesValues[0] == "" {
+				sizesField := discordwebhook.Field{
+					Name:   "Sizes",
+					Value:  "*none*",
+					Inline: false,
+				}
+				fields = append(fields, sizesField)
+			} else {
+				sizesField := discordwebhook.Field{
+					Name:   "Sizes",
+					Value:  sizesValues[0],
+					Inline: false,
+				}
+				fields = append(fields, sizesField)
 			}
-			fields = append(fields, sizesField)
-		} else if len(sizesValues) == 1 {
-			sizesField := discordwebhook.Field{
-				Name:   "Sizes",
-				Value:  sizesValues[0],
-				Inline: true,
-			}
-			fields = append(fields, sizesField)
 		} else {
 			for i, sizesValue := range sizesValues {
 				sizesField := discordwebhook.Field{
 					Name:   fmt.Sprintf("Sizes %d", i+1),
 					Value:  sizesValue,
-					Inline: true,
+					Inline: !(map[int]bool{0: true}[i]),
 				}
 				fields = append(fields, sizesField)
 			}
@@ -208,28 +216,135 @@ func (w *WebhookHandler) NotifyPrice(productData ProductData, oldPrice string) {
 				Value:  "PRICE CHANGE",
 				Inline: true,
 			},
+			{
+				Name:   "AVAILABLE",
+				Value:  strconv.FormatBool(productData.AvailableForSale),
+				Inline: true,
+			},
 		}
 
-		if len(sizesValues) == 0 {
-			sizesField := discordwebhook.Field{
-				Name:   "Sizes",
-				Value:  "*none*",
-				Inline: true,
+		if len(sizesValues) == 1 {
+			if sizesValues[0] == "" {
+				sizesField := discordwebhook.Field{
+					Name:   "Sizes",
+					Value:  "*none*",
+					Inline: false,
+				}
+				fields = append(fields, sizesField)
+			} else {
+				sizesField := discordwebhook.Field{
+					Name:   "Sizes",
+					Value:  sizesValues[0],
+					Inline: false,
+				}
+				fields = append(fields, sizesField)
 			}
-			fields = append(fields, sizesField)
-		} else if len(sizesValues) == 1 {
-			sizesField := discordwebhook.Field{
-				Name:   "Sizes",
-				Value:  sizesValues[0],
-				Inline: true,
-			}
-			fields = append(fields, sizesField)
 		} else {
 			for i, sizesValue := range sizesValues {
 				sizesField := discordwebhook.Field{
 					Name:   fmt.Sprintf("Sizes %d", i+1),
 					Value:  sizesValue,
-					Inline: true,
+					Inline: !(map[int]bool{0: true}[i]),
+				}
+				fields = append(fields, sizesField)
+			}
+		}
+
+		extraField := discordwebhook.Field{
+			Name:   "Extra",
+			Value:  fmt.Sprintf("[**StockX**](https://stockx.com/search?s=%s)", productData.Sku),
+			Inline: false,
+		}
+		fields = append(fields, extraField)
+
+		wreq := webhookRequest{
+			productData: productData,
+			time:        time.Now(),
+			webhookUrl:  webhookUrl,
+			fields:      fields,
+		}
+
+		w.enqueueReq(&wreq)
+	}
+}
+
+func (w *WebhookHandler) NotifyAvailable(productData ProductData) {
+	configMu.RLock()
+	defer configMu.RUnlock()
+
+	for _, webhookUrl := range config.NormalTask.WebhookUrls {
+		sizesValues := []string{}
+		sizesValuesCount := 0
+		if len(productData.AvailableSizes) > 25 {
+			count := 0
+			for _, availableSize := range productData.AvailableSizes {
+				strVal := fmt.Sprintf("%s [%d]", availableSize.Name, availableSize.AmountInStock)
+
+				if count == 25 {
+					count = 0
+					sizesValuesCount += 1
+				}
+
+				sizesValues[count] = fmt.Sprintf("%s\n%s", sizesValues[count], strVal)
+
+				count += 1
+			}
+		} else {
+			finalStr := ""
+			for _, availableSize := range productData.AvailableSizes {
+				strVal := fmt.Sprintf("%s [%d]", availableSize.Name, availableSize.AmountInStock)
+
+				finalStr = fmt.Sprintf("%s\n%s", finalStr, strVal)
+			}
+
+			sizesValues = append(sizesValues, finalStr)
+		}
+
+		fields := []discordwebhook.Field{
+			{
+				Name:   "SKU/PID",
+				Value:  productData.Sku,
+				Inline: true,
+			},
+			{
+				Name:   "PRICE",
+				Value:  productData.Price,
+				Inline: true,
+			},
+			{
+				Name:   "TYPE",
+				Value:  "AVAILABILITY CHANGE",
+				Inline: true,
+			},
+			{
+				Name:   "AVAILABLE",
+				Value:  strconv.FormatBool(productData.AvailableForSale),
+				Inline: true,
+			},
+		}
+
+		if len(sizesValues) == 1 {
+			if sizesValues[0] == "" {
+				sizesField := discordwebhook.Field{
+					Name:   "Sizes",
+					Value:  "*none*",
+					Inline: false,
+				}
+				fields = append(fields, sizesField)
+			} else {
+				sizesField := discordwebhook.Field{
+					Name:   "Sizes",
+					Value:  sizesValues[0],
+					Inline: false,
+				}
+				fields = append(fields, sizesField)
+			}
+		} else {
+			for i, sizesValue := range sizesValues {
+				sizesField := discordwebhook.Field{
+					Name:   fmt.Sprintf("Sizes %d", i+1),
+					Value:  sizesValue,
+					Inline: !(map[int]bool{0: true}[i]),
 				}
 				fields = append(fields, sizesField)
 			}
@@ -297,32 +412,39 @@ func (w *WebhookHandler) NotifyLoad(productData ProductData, matchingKwdQueries 
 				Inline: true,
 			},
 			{
+				Name:   "AVAILABLE",
+				Value:  strconv.FormatBool(productData.AvailableForSale),
+				Inline: true,
+			},
+			{
 				Name:   "PRICE",
 				Value:  productData.Price,
 				Inline: true,
 			},
 		}
 
-		if len(sizesValues) == 0 {
-			sizesField := discordwebhook.Field{
-				Name:   "Sizes",
-				Value:  "*none*",
-				Inline: true,
+		if len(sizesValues) == 1 {
+			if sizesValues[0] == "" {
+				sizesField := discordwebhook.Field{
+					Name:   "Sizes",
+					Value:  "*none*",
+					Inline: false,
+				}
+				fields = append(fields, sizesField)
+			} else {
+				sizesField := discordwebhook.Field{
+					Name:   "Sizes",
+					Value:  sizesValues[0],
+					Inline: false,
+				}
+				fields = append(fields, sizesField)
 			}
-			fields = append(fields, sizesField)
-		} else if len(sizesValues) == 1 {
-			sizesField := discordwebhook.Field{
-				Name:   "Sizes",
-				Value:  sizesValues[0],
-				Inline: true,
-			}
-			fields = append(fields, sizesField)
 		} else {
 			for i, sizesValue := range sizesValues {
 				sizesField := discordwebhook.Field{
 					Name:   fmt.Sprintf("Sizes %d", i+1),
 					Value:  sizesValue,
-					Inline: true,
+					Inline: !(map[int]bool{0: true}[i]),
 				}
 				fields = append(fields, sizesField)
 			}

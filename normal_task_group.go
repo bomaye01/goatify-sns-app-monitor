@@ -61,9 +61,10 @@ func (g *NormalTaskGroup) AddSkuQuery(skuStr string) {
 	g.skuQueries = append(g.skuQueries, SkuQuery(skuStr))
 
 	newState := &ProductStateNormal{
-		Sku:            skuStr,
-		AvailableSizes: []AvailableSize{},
-		Price:          "",
+		Sku:              skuStr,
+		AvailableForSale: true,
+		AvailableSizes:   []AvailableSize{},
+		Price:            "0",
 	}
 
 	statesNormalMu.Lock()
@@ -139,9 +140,10 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 
 			statesNormalMu.Lock()
 			resetStates := &ProductStateNormal{
-				Sku:            string(skuQuery),
-				Price:          "0",
-				AvailableSizes: []AvailableSize{},
+				Sku:              string(skuQuery),
+				AvailableForSale: true,
+				Price:            "0",
+				AvailableSizes:   []AvailableSize{},
 			}
 
 			NormalSetState(resetStates.Sku, resetStates)
@@ -168,8 +170,11 @@ func (g *NormalTaskGroup) matchProductStates(product ProductData) bool {
 
 	stateChange := false
 
+	isAvailableForSale := product.AvailableForSale
+
 	notifySize := false
 	notifyPrice := false
+	notifyAvailableForSale := false
 
 	newAvailableSizes := []AvailableSize{}
 	oldPrice := ""
@@ -200,14 +205,23 @@ func (g *NormalTaskGroup) matchProductStates(product ProductData) bool {
 
 				state.Price = product.Price
 			}
+
+			if state.AvailableForSale != product.AvailableForSale {
+				if !state.AvailableForSale {
+					notifyAvailableForSale = true
+				}
+
+				state.AvailableForSale = product.AvailableForSale
+			}
 		}
 	}
 
 	if !productInStates {
 		newState := &ProductStateNormal{
-			Sku:            product.Sku,
-			AvailableSizes: product.AvailableSizes,
-			Price:          product.Price,
+			Sku:              product.Sku,
+			AvailableForSale: true,
+			AvailableSizes:   product.AvailableSizes,
+			Price:            product.Price,
 		}
 
 		NormalSetState(newState.Sku, newState)
@@ -216,28 +230,48 @@ func (g *NormalTaskGroup) matchProductStates(product ProductData) bool {
 	}
 
 	// Console log
-	if notifySize && notifyPrice {
-		g.logger.Green(fmt.Sprintf("%s: New available sizes: %v | Price changed: %s -> %s", product.Sku, newAvailableSizes, oldPrice, product.Price))
-	} else if notifyPrice {
-		if oldPrice > product.Price {
-			g.logger.Green(fmt.Sprintf("%s: Price changed: %s -> %s", product.Sku, oldPrice, product.Price))
-		} else {
-			g.logger.Gray(fmt.Sprintf("%s: Price changed: %s -> %s", product.Sku, oldPrice, product.Price))
+	if notifySize || notifyPrice || notifyAvailableForSale {
+		notifyStr := fmt.Sprintf("%s:", product.Sku)
+		colorGreen := false
+
+		if notifySize {
+			notifyStr = fmt.Sprintf("%s New available sizes: %v |", notifyStr, newAvailableSizes)
+			colorGreen = true
 		}
-	} else if notifySize {
-		g.logger.Green(fmt.Sprintf("%s: New available sizes: %v", product.Sku, newAvailableSizes))
-	} else {
-		g.logger.Gray(fmt.Sprintf("%s: No changes on product", product.Sku))
+		if notifyPrice {
+			notifyStr = fmt.Sprintf("%s Price changed: %s -> %s |", notifyStr, oldPrice, product.Price)
+			if oldPrice > product.Price {
+				colorGreen = true
+			}
+		}
+		if notifyAvailableForSale {
+			notifyStr = fmt.Sprintf("%s available for sale", notifyStr)
+			colorGreen = true
+		}
+		notifyStr = strings.TrimSuffix(notifyStr, " |")
+
+		if !isAvailableForSale {
+			colorGreen = false
+		}
+
+		if colorGreen {
+			g.logger.Green(notifyStr)
+		} else {
+			g.logger.Gray(notifyStr)
+		}
 	}
 
 	// Webhook notify
-	if notifySize {
+	if notifySize && isAvailableForSale {
 		g.notifySize(product)
 	}
 	if notifyPrice {
 		if oldPrice > product.Price {
 			g.notifyPrice(product, oldPrice)
 		}
+	}
+	if notifyAvailableForSale {
+		g.notifyAvailable(product)
 	}
 
 	return stateChange
@@ -362,4 +396,8 @@ func (t *NormalTaskGroup) notifySize(productData ProductData) {
 
 func (t *NormalTaskGroup) notifyPrice(productData ProductData, oldPrice string) {
 	webhookHandler.NotifyPrice(productData, oldPrice)
+}
+
+func (t *NormalTaskGroup) notifyAvailable(productData ProductData) {
+	webhookHandler.NotifyAvailable(productData)
 }

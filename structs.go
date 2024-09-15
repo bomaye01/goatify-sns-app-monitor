@@ -43,9 +43,10 @@ type ProductStatesNormal struct {
 }
 
 type ProductStateNormal struct {
-	Sku            string          `json:"sku"`
-	AvailableSizes []AvailableSize `json:"availableSizes"`
-	Price          string          `json:"price"`
+	Sku              string          `json:"sku"`
+	AvailableForSale bool            `json:"availableForSale"`
+	AvailableSizes   []AvailableSize `json:"availableSizes"`
+	Price            string          `json:"price"`
 }
 
 type ProductStatesLoad struct {
@@ -60,13 +61,14 @@ type ProductStateLoad struct {
 }
 
 type ProductData struct {
-	ProductUrl     string
-	Title          string
-	Sku            string
-	AvailableSizes []AvailableSize
-	Price          string
-	ImageUrl       string
-	IdentifyerStr  string
+	ProductUrl       string
+	Title            string
+	Sku              string
+	AvailableForSale bool
+	AvailableSizes   []AvailableSize
+	Price            string
+	ImageUrl         string
+	IdentifyerStr    string
 }
 
 type AvailableSize struct {
