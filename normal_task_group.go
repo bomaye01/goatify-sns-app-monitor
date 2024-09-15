@@ -10,7 +10,7 @@ import (
 type NormalTaskGroup struct {
 	*BaseTaskGroup
 	loadTaskGroup  *LoadTaskGroup
-	lastCheckedPos int
+	nextPosToCheck int
 	skuQueries     []SkuQuery
 	loadSkuQueries []SkuQuery
 }
@@ -259,6 +259,8 @@ func (g *NormalTaskGroup) matchProductStates(product ProductData) bool {
 		} else {
 			g.logger.Gray(notifyStr)
 		}
+	} else {
+		g.logger.Gray(fmt.Sprintf("%s: No changes", product.Sku))
 	}
 
 	// Webhook notify
@@ -317,34 +319,32 @@ func (g *NormalTaskGroup) getNextSkus() []string {
 	}
 
 	// Then add normal skus
-	nextPos := g.lastCheckedPos + 1
+	pointer := g.nextPosToCheck
 
 	for len(nextSkus) < 10 && len(g.skuQueries) > 0 {
-		// Round robin
-		if nextPos >= len(g.skuQueries) {
-			nextPos = nextPos % len(g.skuQueries)
-		}
-
-		normalQuery := g.skuQueries[nextPos]
-
+		// Append if not included already
+		normalQuery := g.skuQueries[pointer]
 		if !existing[normalQuery] {
 			nextSkus = append(nextSkus, string(normalQuery))
 
 			existing[normalQuery] = true
 		}
 
-		nextPos += 1
+		// Increment
+		pointer += 1
+
+		// Round robin
+		if pointer == len(g.skuQueries) {
+			pointer = 0
+		}
 
 		// Break condition
-		if nextPos == g.lastCheckedPos {
+		if pointer == g.nextPosToCheck {
 			break
 		}
 	}
 
-	if nextPos == 0 {
-		nextPos = len(g.skuQueries)
-	}
-	g.lastCheckedPos = nextPos - 1
+	g.nextPosToCheck = pointer
 
 	return nextSkus
 }
