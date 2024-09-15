@@ -92,7 +92,7 @@ func (g *NormalTaskGroup) RemoveSkuQuery(skuStr string) {
 	}
 
 	statesNormalMu.Lock()
-	NormalUnsetState(skuStr)
+	NormalUnsetState(string(skuQuery))
 	statesNormalMu.Unlock()
 
 	go writeProductStates()
