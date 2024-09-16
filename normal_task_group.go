@@ -7,6 +7,10 @@ import (
 	"strings"
 )
 
+const (
+	SKUS_BATCH_SIZE = 1
+)
+
 type NormalTaskGroup struct {
 	*BaseTaskGroup
 	loadTaskGroup  *LoadTaskGroup
@@ -313,7 +317,7 @@ func (g *NormalTaskGroup) getNextSkus() []string {
 			existing[loadQuery] = true
 		}
 
-		if len(nextSkus) == 10 {
+		if len(nextSkus) == SKUS_BATCH_SIZE {
 			return nextSkus
 		}
 	}
@@ -321,7 +325,7 @@ func (g *NormalTaskGroup) getNextSkus() []string {
 	// Then add normal skus
 	pointer := g.nextPosToCheck
 
-	for len(nextSkus) < 10 && len(g.skuQueries) > 0 {
+	for len(nextSkus) < SKUS_BATCH_SIZE && len(g.skuQueries) > 0 {
 		// Append if not included already
 		normalQuery := g.skuQueries[pointer]
 		if !existing[normalQuery] {
