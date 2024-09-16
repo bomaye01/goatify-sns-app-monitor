@@ -67,7 +67,7 @@ func NewBaseTask(taskName string, runCallback func(), stopCallback func(), proxy
 		},
 		{
 			Name:  "geoCountry",
-			Value: "NL", // Set the appropriate value
+			Value: "DE", // Set the appropriate value
 			Path:  "/",
 		},
 	}
