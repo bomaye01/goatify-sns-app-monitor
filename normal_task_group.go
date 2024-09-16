@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	SKUS_BATCH_SIZE = 1
+	SKUS_BATCH_SIZE = 30
 )
 
 type NormalTaskGroup struct {
@@ -117,13 +117,13 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 	loadProductData := []ProductData{}
 
 	includedSkuQueries := make(map[SkuQuery]bool)
-	for _, productEdge := range *res {
-		pSkuQuery := MakeSkuQuery(productEdge.Sku)
+	for _, productEdge := range res.Data.Site.Search.SearchProducts.Products.Edges {
+		pSkuQuery := MakeSkuQuery(productEdge.Node.Sku)
 
 		includedSkuQueries[pSkuQuery] = true
 
 		// Determine if sku is from normal or load
-		productData := GetProductData(productEdge)
+		productData := GetProductData(productEdge.Node)
 
 		if g.isNormalSku(pSkuQuery) {
 			stateChanged := g.matchProductStates(productData)
