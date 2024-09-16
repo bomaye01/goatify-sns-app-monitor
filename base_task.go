@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"sync"
 
+	http "github.com/bogdanfinn/fhttp"
 	tls_client "github.com/bogdanfinn/tls-client"
 	"github.com/bogdanfinn/tls-client/profiles"
 )
@@ -45,11 +47,33 @@ func NewBaseTask(taskName string, runCallback func(), stopCallback func(), proxy
 		return nil, errors.New("webhook handler reference nil")
 	}
 
+	jar := tls_client.NewCookieJar()
+
 	options := []tls_client.HttpClientOption{
+		tls_client.WithCookieJar(jar),
 		tls_client.WithTimeoutSeconds(10),
 		tls_client.WithClientProfile(profiles.Okhttp4Android13),
 		tls_client.WithNotFollowRedirects(),
 	}
+
+	u, _ := url.Parse("https://sneakersnstuff.com")
+
+	// Create cookies for country and geoCountry
+	cookies := []*http.Cookie{
+		{
+			Name:  "country",
+			Value: "DE", // Set the appropriate value
+			Path:  "/",
+		},
+		{
+			Name:  "geoCountry",
+			Value: "NL", // Set the appropriate value
+			Path:  "/",
+		},
+	}
+
+	// Add cookies to the jar
+	jar.SetCookies(u, cookies)
 
 	client, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(), options...)
 	if err != nil {
