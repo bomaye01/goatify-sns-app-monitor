@@ -46,7 +46,7 @@ func NewBaseTask(taskName string, runCallback func(), stopCallback func(), proxy
 	}
 
 	options := []tls_client.HttpClientOption{
-		tls_client.WithTimeoutSeconds(10),
+		tls_client.WithTimeoutSeconds(5),
 		tls_client.WithClientProfile(profiles.Okhttp4Android13),
 		tls_client.WithNotFollowRedirects(),
 	}
