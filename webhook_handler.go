@@ -116,11 +116,15 @@ func (w *WebhookHandler) NotifyRestock(productData ProductData) {
 				Value:  "RESTOCK",
 				Inline: true,
 			},
-			{
+		}
+
+		if !productData.AvailableForSale {
+			availableField := discordwebhook.Field{
 				Name:   "AVAILABLE",
-				Value:  strconv.FormatBool(productData.AvailableForSale),
+				Value:  "false",
 				Inline: true,
-			},
+			}
+			fields = append(fields, availableField)
 		}
 
 		if len(sizesValues) == 1 {
@@ -216,11 +220,15 @@ func (w *WebhookHandler) NotifyPrice(productData ProductData, oldPrice string) {
 				Value:  "PRICE CHANGE",
 				Inline: true,
 			},
-			{
+		}
+
+		if !productData.AvailableForSale {
+			availableField := discordwebhook.Field{
 				Name:   "AVAILABLE",
-				Value:  strconv.FormatBool(productData.AvailableForSale),
+				Value:  "false",
 				Inline: true,
-			},
+			}
+			fields = append(fields, availableField)
 		}
 
 		if len(sizesValues) == 1 {
@@ -314,11 +322,6 @@ func (w *WebhookHandler) NotifyAvailable(productData ProductData) {
 			{
 				Name:   "TYPE",
 				Value:  "AVAILABILITY CHANGE",
-				Inline: true,
-			},
-			{
-				Name:   "AVAILABLE",
-				Value:  strconv.FormatBool(productData.AvailableForSale),
 				Inline: true,
 			},
 		}
