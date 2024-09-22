@@ -4,83 +4,68 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
-	"strconv"
+	"net/url"
 	"strings"
+	"time"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
-type Client struct {
-	clientId string
-	conn     *websocket.Conn
-}
-
-func startWebsocketServer() {
+func handleWebsocketClientConnection() {
 	defer tasksWg.Done()
 
 	configMu.Lock()
-	http.HandleFunc(fmt.Sprintf("/goatify-monitor-control-%s", config.WebsocketPathSuffix), handleWebSocket)
 
-	// Start the server
-	port := strconv.Itoa(config.WebsocketPort)
+	// WebSocket server URL
+	serverURL := url.URL{
+		Scheme: "ws",
+		Host:   fmt.Sprintf("localhost:%d", config.WebsocketPort),
+	}
+
 	configMu.Unlock()
 
-	websocketLogger.White(fmt.Sprintf("Starting server on port %s", port))
-	err := http.ListenAndServe(":"+port, nil)
-	if err != nil {
-		log.Fatal("ListenAndServe:", err)
-	}
-}
+	websocketLogger.White("Connnecting to websocket server...")
 
-func handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	// Upgrade initial GET request to a WebSocket
-	conn, err := upgrader.Upgrade(w, r, nil)
+	// Establish WebSocket connection
+	conn, _, err := websocket.DefaultDialer.Dial(serverURL.String(), nil)
 	if err != nil {
-		websocketLogger.Red(fmt.Sprintf("Error upgrading to WebSocket: %v", err))
-		return
+		log.Fatalf("Failed to connect to WebSocket server: %v", err)
 	}
-	client := &Client{
-		conn: conn,
-	}
-	defer func() {
-		onDisconnect(client)
-		conn.Close()
+	defer conn.Close()
+
+	// Send a message once connected
+	go func() {
+		time.Sleep(time.Second) // Short delay to ensure connection is established
+
+		sendClientHello(conn)
 	}()
 
-	// Trigger onConnect event
-	onConnect(client)
-
-	// Listen for messages from the client
+	// Listen for incoming messages from the server
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			websocketLogger.Red(fmt.Sprintf("Error reading message: %v", err))
 			break
 		}
-		// Trigger onMessage event
-		onMessage(client, message)
+
+		onMessage(conn, message)
 	}
 }
 
-// WebSocket upgrader
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+func sendClientHello(conn *websocket.Conn) {
+	clientHelloMsg := ClientHelloMessage{
+		MonitorType: "SNS",
+		TypeName:    "CLIENT_HELLO",
+	}
+	bytes, err := json.Marshal(clientHelloMsg)
+	if err != nil {
+		websocketLogger.Red(fmt.Sprintf("Error sending client hello message: %v", err))
+	}
+
+	conn.WriteMessage(websocket.TextMessage, bytes)
 }
 
-// Event handlers
-var onConnect = func(client *Client) {
-	client.clientId = uuid.NewString()
-
-	websocketLogger.Cyan(fmt.Sprintf("[%s] New client connected", client.clientId))
-}
-
-var onMessage = func(client *Client, message []byte) {
+var onMessage = func(conn *websocket.Conn, message []byte) {
 	var messageType MessageType
 
 	err := json.Unmarshal(message, &messageType)
@@ -110,12 +95,12 @@ var onMessage = func(client *Client, message []byte) {
 				websocketLogger.Red(fmt.Sprintf("already monitoring %s", aerr.queryValue))
 
 				errText := fmt.Sprintf("Fehler: %s \"%s\" ist bereits im Monitor.", addMessage.InputType, addMessage.AddQuery)
-				sendError(client, addMessage.TaskId, errText)
+				sendError(conn, addMessage.TaskId, errText)
 				return
 			} else {
 				websocketLogger.Red(fmt.Sprintf("error adding query: %v", err))
 
-				sendError(client, addMessage.TaskId, "Interner Fehler")
+				sendError(conn, addMessage.TaskId, "Interner Fehler")
 				return
 			}
 		}
@@ -123,7 +108,7 @@ var onMessage = func(client *Client, message []byte) {
 		websocketLogger.Cyan(fmt.Sprintf("Added %s %s", addMessage.InputType, addMessage.AddQuery))
 
 		successText := fmt.Sprintf("%s \"%s\" wurde erfolgreich hinzugefügt.", addMessage.InputType, addMessage.AddQuery)
-		sendSuccess(client, addMessage.TaskId, successText)
+		sendSuccess(conn, addMessage.TaskId, successText)
 	case "REMOVE":
 		var removeMessage RemoveMessage
 
@@ -144,12 +129,12 @@ var onMessage = func(client *Client, message []byte) {
 				websocketLogger.Red(aerr)
 
 				errText := fmt.Sprintf("Fehler: %s \"%s\" wurde nicht gefunden.", removeMessage.InputType, removeMessage.RemoveQuery)
-				sendError(client, removeMessage.TaskId, errText)
+				sendError(conn, removeMessage.TaskId, errText)
 				return
 			} else {
 				websocketLogger.Red(fmt.Sprintf("error removing query: %v", err))
 
-				sendError(client, removeMessage.TaskId, "Interner Fehler.")
+				sendError(conn, removeMessage.TaskId, "Interner Fehler.")
 				return
 			}
 		}
@@ -157,7 +142,7 @@ var onMessage = func(client *Client, message []byte) {
 		websocketLogger.Cyan(fmt.Sprintf("Removed %s %s", removeMessage.InputType, removeMessage.RemoveQuery))
 
 		successText := fmt.Sprintf("%s \"%s\" wurde erfolgreich gelöscht.", removeMessage.InputType, removeMessage.RemoveQuery)
-		sendSuccess(client, removeMessage.TaskId, successText)
+		sendSuccess(conn, removeMessage.TaskId, successText)
 	case "LIST":
 		var listMessage ListMessage
 
@@ -171,52 +156,48 @@ var onMessage = func(client *Client, message []byte) {
 		if err != nil {
 			websocketLogger.Red(fmt.Sprintf("error listing query: %v", err))
 
-			sendError(client, listMessage.TaskId, "Interner Fehler.")
+			sendError(conn, listMessage.TaskId, "Interner Fehler.")
 			return
 		}
 
 		successText := fmt.Sprintf("%s Liste:", listMessage.InputType)
-		sendSuccessList(client, listMessage.TaskId, successText, list)
+		sendSuccessList(conn, listMessage.TaskId, successText, list)
 	default:
 		websocketLogger.Red(fmt.Sprintf("Unexpected message typename: %s", messageType.TypeName))
 		return
 	}
 }
 
-var onDisconnect = func(client *Client) {
-	websocketLogger.Cyan(fmt.Sprintf("[%s]: Client disconnected", client.clientId))
-}
-
-func sendSuccess(client *Client, taskId string, successText string) {
-	errMsg := SuccessResponse{
+func sendSuccess(conn *websocket.Conn, taskId string, successText string) {
+	successMsg := SuccessResponse{
 		TypeName:    "SUCCESS",
 		TaskId:      taskId,
-		SuccessTest: successText,
+		SuccessText: successText,
 	}
-	bytes, err := json.Marshal(errMsg)
+	bytes, err := json.Marshal(successMsg)
 	if err != nil {
 		websocketLogger.Red(fmt.Sprintf("Error sending success message: %v", err))
 	}
 
-	client.conn.WriteMessage(websocket.TextMessage, bytes)
+	conn.WriteMessage(websocket.TextMessage, bytes)
 }
 
-func sendSuccessList(client *Client, taskId string, successText string, list []string) {
-	errMsg := SuccessListResponse{
+func sendSuccessList(conn *websocket.Conn, taskId string, successText string, list []string) {
+	successMsg := SuccessListResponse{
 		TypeName:    "SUCCESS",
 		TaskId:      taskId,
-		SuccessTest: successText,
+		SuccessText: successText,
 		List:        list,
 	}
-	bytes, err := json.Marshal(errMsg)
+	bytes, err := json.Marshal(successMsg)
 	if err != nil {
 		websocketLogger.Red(fmt.Sprintf("Error sending success list message: %v", err))
 	}
 
-	client.conn.WriteMessage(websocket.TextMessage, bytes)
+	conn.WriteMessage(websocket.TextMessage, bytes)
 }
 
-func sendError(client *Client, taskId string, errorText string) {
+func sendError(conn *websocket.Conn, taskId string, errorText string) {
 	errMsg := ErrorResponse{
 		TypeName:  "ERROR",
 		TaskId:    taskId,
@@ -227,5 +208,5 @@ func sendError(client *Client, taskId string, errorText string) {
 		websocketLogger.Red(fmt.Sprintf("Error sending error message: %v", err))
 	}
 
-	client.conn.WriteMessage(websocket.TextMessage, bytes)
+	conn.WriteMessage(websocket.TextMessage, bytes)
 }

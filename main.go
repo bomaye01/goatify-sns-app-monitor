@@ -75,7 +75,7 @@ func main() {
 	initTerminal()
 
 	tasksWg.Add(1)
-	go startWebsocketServer()
+	go handleWebsocketClientConnection()
 
 	// Load product states
 	productStates, err = readProductStates()
