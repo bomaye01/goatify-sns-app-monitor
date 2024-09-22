@@ -106,13 +106,13 @@ type ListMessage struct {
 type SuccessResponse struct {
 	TypeName    string `json:"typeName"`
 	TaskId      string `json:"taskId"`
-	SuccessTest string `json:"successText"`
+	SuccessText string `json:"successText"`
 }
 
 type SuccessListResponse struct {
 	TypeName    string   `json:"typeName"`
 	TaskId      string   `json:"taskId"`
-	SuccessTest string   `json:"successText"`
+	SuccessText string   `json:"successText"`
 	List        []string `json:"list"`
 }
 
