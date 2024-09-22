@@ -1,28 +1,6 @@
 package main
 
-import "fmt"
-
 var productStates *ProductStates = nil
-
-type AlreadyIncludedError struct {
-	statesType    string
-	includedType  string
-	includedValue string
-}
-
-func (e *AlreadyIncludedError) Error() string {
-	return fmt.Sprintf("%s \"%s\" already included in %s product states", e.includedType, e.includedValue, e.statesType)
-}
-
-type NotIncludedError struct {
-	statesType    string
-	includedType  string
-	includedValue string
-}
-
-func (e *NotIncludedError) Error() string {
-	return fmt.Sprintf("%s \"%s\" not included in %s product states", e.includedType, e.includedValue, e.statesType)
-}
 
 func NormalSetState(skuStr string, state *ProductStateNormal) {
 	if _, i := NormalGetState(skuStr); i >= 0 {

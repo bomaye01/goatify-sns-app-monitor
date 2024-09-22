@@ -59,19 +59,22 @@ func (e *QueryNotFoundError) Error() string {
 	return fmt.Sprintf("%s \"%s\" not found", e.queryType, e.queryValue)
 }
 
-type NotAProductPageError struct {
-	url string
+type AlreadyIncludedError struct {
+	statesType    string
+	includedType  string
+	includedValue string
 }
 
-func (e *NotAProductPageError) Error() string {
-	return fmt.Sprintf("url \"%s\" is not a value product page", e.url)
+func (e *AlreadyIncludedError) Error() string {
+	return fmt.Sprintf("%s \"%s\" already included in %s product states", e.includedType, e.includedValue, e.statesType)
 }
 
-type ProductPageCheckError struct {
-	err error
-	url string
+type NotIncludedError struct {
+	statesType    string
+	includedType  string
+	includedValue string
 }
 
-func (e *ProductPageCheckError) Error() string {
-	return fmt.Sprintf("product page check failed on \"%s\": %v", e.url, e.err)
+func (e *NotIncludedError) Error() string {
+	return fmt.Sprintf("%s \"%s\" not included in %s product states", e.includedType, e.includedValue, e.statesType)
 }

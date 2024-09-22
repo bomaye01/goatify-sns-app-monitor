@@ -112,18 +112,6 @@ var onMessage = func(client *Client, message []byte) {
 				errText := fmt.Sprintf("Fehler: %s \"%s\" ist bereits im Monitor.", addMessage.InputType, addMessage.AddQuery)
 				sendError(client, addMessage.TaskId, errText)
 				return
-			} else if nerr, ok := err.(*NotAProductPageError); ok {
-				websocketLogger.Red(fmt.Sprintf("not a product page %s", nerr.url))
-
-				errText := fmt.Sprintf("Fehler: Ungültige Produkt-Url: %s", addMessage.AddQuery)
-				sendError(client, addMessage.TaskId, errText)
-				return
-			} else if cerr, ok := err.(*ProductPageCheckError); ok {
-				websocketLogger.Red(fmt.Sprintf("error checking %s", cerr.url))
-
-				errText := fmt.Sprintf("Fehler aufgetreten beim Prüfen von %s \"%s\"", addMessage.InputType, addMessage.AddQuery)
-				sendError(client, addMessage.TaskId, errText)
-				return
 			} else {
 				websocketLogger.Red(fmt.Sprintf("error adding query: %v", err))
 
