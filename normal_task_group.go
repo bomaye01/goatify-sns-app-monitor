@@ -8,7 +8,8 @@ import (
 )
 
 const (
-	SKUS_BATCH_SIZE = 30
+	SKUS_BATCH_SIZE  = 30
+	UNLOAD_THRESHOLD = 100 // 100 requests required to unload product state
 )
 
 type NormalTaskGroup struct {
@@ -17,6 +18,7 @@ type NormalTaskGroup struct {
 	nextPosToCheck int
 	skuQueries     []SkuQuery
 	loadSkuQueries []SkuQuery
+	unloadCount    map[SkuQuery]int
 }
 
 func NewNormalTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandler, skuQueryStrings []string) (*NormalTaskGroup, error) {
@@ -31,6 +33,7 @@ func NewNormalTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandl
 	normalTaskGroup := &NormalTaskGroup{
 		skuQueries:     skuQueries,
 		loadSkuQueries: []SkuQuery{},
+		unloadCount:    make(map[SkuQuery]int),
 	}
 
 	baseTaskGroup, err := NewBaseTaskGroup("NORMAL", proxyHandler, webhookHandler)
@@ -121,6 +124,7 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 		pSkuQuery := MakeSkuQuery(productEdge.Node.Sku)
 
 		includedSkuQueries[pSkuQuery] = true
+		g.unloadCount[pSkuQuery] = 0
 
 		// Determine if sku is from normal or load
 		productData := GetProductData(productEdge.Node)
@@ -136,22 +140,30 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 		}
 	}
 
-	for _, skuQuery := range skusInRequest {
-		if !includedSkuQueries[MakeSkuQuery(skuQuery)] {
-			g.logger.Grey(fmt.Sprintf("%s: Not loaded", string(skuQuery)))
+	for _, skuQueryStr := range skusInRequest {
+		if skuQuery := MakeSkuQuery(skuQueryStr); !includedSkuQueries[skuQuery] {
+			if g.unloadCount[skuQuery]+1 == UNLOAD_THRESHOLD {
+				g.logger.Grey(fmt.Sprintf("%s: Not loaded. Resetting product state...", string(skuQuery)))
 
-			syncRequired = true
+				statesNormalMu.Lock()
+				resetStates := &ProductStateNormal{
+					Sku:              string(skuQuery),
+					AvailableForSale: true,
+					Price:            "0",
+					AvailableSizes:   []AvailableSize{},
+				}
 
-			statesNormalMu.Lock()
-			resetStates := &ProductStateNormal{
-				Sku:              string(skuQuery),
-				AvailableForSale: true,
-				Price:            "0",
-				AvailableSizes:   []AvailableSize{},
+				NormalSetState(resetStates.Sku, resetStates)
+				statesNormalMu.Unlock()
+
+				g.unloadCount[skuQuery] = UNLOAD_THRESHOLD + 1 // Make sure to only reset once
+			} else {
+				g.logger.Grey(fmt.Sprintf("%s: Not loaded", string(skuQuery)))
+
+				g.unloadCount[skuQuery] += 1
 			}
 
-			NormalSetState(resetStates.Sku, resetStates)
-			statesNormalMu.Unlock()
+			syncRequired = true
 		}
 	}
 
