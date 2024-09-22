@@ -42,40 +42,56 @@ func (l *Logger) getPrefixFile() string {
 
 func (l *Logger) Gray(format any) {
 	log.Printf("%s %s%s%s\n", l.getPrefixCli(), gray, format, reset)
-	fileLogger.Printf("%s %s", l.getPrefixFile(), format)
+	if fileLoggingEnabled {
+		fileLogger.Printf("%s %s", l.getPrefixFile(), format)
+	}
 }
 
 func (l *Logger) Red(format any) {
 	log.Printf("%s %s%s%s\n", l.getPrefixCli(), red, format, reset)
-	fileLogger.Printf("%s %s", l.getPrefixFile(), format)
+	if fileLoggingEnabled {
+		fileLogger.Printf("%s %s", l.getPrefixFile(), format)
+	}
 }
 
 func (l *Logger) Green(format any) {
 	log.Printf("%s %s%s%s\n", l.getPrefixCli(), green, format, reset)
-	fileLogger.Printf("%s %s", l.getPrefixFile(), format)
+	if fileLoggingEnabled {
+		fileLogger.Printf("%s %s", l.getPrefixFile(), format)
+	}
 }
 
 func (l *Logger) Yellow(format any) {
 	log.Printf("%s %s%s%s\n", l.getPrefixCli(), yellow, format, reset)
-	fileLogger.Printf("%s %s", l.getPrefixFile(), format)
+	if fileLoggingEnabled {
+		fileLogger.Printf("%s %s", l.getPrefixFile(), format)
+	}
 }
 
 func (l *Logger) Blue(format any) {
 	log.Printf("%s %s%s%s\n", l.getPrefixCli(), blue, format, reset)
-	fileLogger.Printf("%s %s", l.getPrefixFile(), format)
+	if fileLoggingEnabled {
+		fileLogger.Printf("%s %s", l.getPrefixFile(), format)
+	}
 }
 
 func (l *Logger) Pink(format any) {
 	log.Printf("%s %s%s%s\n", l.getPrefixCli(), pink, format, reset)
-	fileLogger.Printf("%s %s", l.getPrefixFile(), format)
+	if fileLoggingEnabled {
+		fileLogger.Printf("%s %s", l.getPrefixFile(), format)
+	}
 }
 
 func (l *Logger) Cyan(format any) {
 	log.Printf("%s %s%s%s\n", l.getPrefixCli(), cyan, format, reset)
-	fileLogger.Printf("%s %s", l.getPrefixFile(), format)
+	if fileLoggingEnabled {
+		fileLogger.Printf("%s %s", l.getPrefixFile(), format)
+	}
 }
 
 func (l *Logger) White(format any) {
 	log.Printf("%s %s%s%s\n", l.getPrefixCli(), white, format, reset)
-	fileLogger.Printf("%s %s", l.getPrefixFile(), format)
+	if fileLoggingEnabled {
+		fileLogger.Printf("%s %s", l.getPrefixFile(), format)
+	}
 }

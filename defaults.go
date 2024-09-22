@@ -15,6 +15,7 @@ var defaultConfig Config = Config{
 	ProxyfileName:       "",
 	WebhookErrorTimeout: 3500,
 	RemoveBadProxy:      false,
+	EnableFileLogging:   false,
 }
 
 var defaultProductStates ProductStates = ProductStates{

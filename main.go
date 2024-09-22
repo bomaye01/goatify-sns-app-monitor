@@ -35,6 +35,8 @@ var webhookHandler *WebhookHandler = nil
 var normalTaskGroup *NormalTaskGroup = nil
 var loadTaskGroup *LoadTaskGroup = nil
 
+var fileLoggingEnabled bool = true
+
 func main() {
 	err := checkLogfolder()
 	if err != nil {
@@ -87,9 +89,15 @@ func main() {
 
 	formatProductStates()
 
-	// Load proxies
 	configMu.RLock()
 
+	// Check file logging
+	if !config.EnableFileLogging {
+		fileLogger.Println("file logging disabled")
+		fileLoggingEnabled = false
+	}
+
+	// Load proxies
 	proxies, err := readProxyfile(config.ProxyfileName)
 	if err != nil {
 		configMu.RUnlock()
