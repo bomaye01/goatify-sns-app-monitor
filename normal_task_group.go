@@ -138,7 +138,7 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 
 	for _, skuQuery := range skusInRequest {
 		if !includedSkuQueries[MakeSkuQuery(skuQuery)] {
-			g.logger.Gray(fmt.Sprintf("%s: Not loaded", string(skuQuery)))
+			g.logger.Grey(fmt.Sprintf("%s: Not loaded", string(skuQuery)))
 
 			syncRequired = true
 
@@ -261,10 +261,10 @@ func (g *NormalTaskGroup) matchProductStates(product ProductData) bool {
 		if colorGreen {
 			g.logger.Green(notifyStr)
 		} else {
-			g.logger.Gray(notifyStr)
+			g.logger.Grey(notifyStr)
 		}
 	} else {
-		g.logger.Gray(fmt.Sprintf("%s: No changes", product.Sku))
+		g.logger.Grey(fmt.Sprintf("%s: No changes", product.Sku))
 	}
 
 	// Webhook notify

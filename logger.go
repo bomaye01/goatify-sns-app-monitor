@@ -8,7 +8,7 @@ import (
 
 const (
 	reset  = "\033[0m"
-	gray   = "\033[90m"
+	grey   = "\033[90m"
 	red    = "\033[91m"
 	green  = "\033[92m"
 	yellow = "\033[93m"
@@ -31,7 +31,7 @@ func NewLogger(typeName string) *Logger {
 func (l *Logger) getPrefixCli() string {
 	t := time.Now()
 
-	return fmt.Sprintf("%s%02d.%02d.%d %02d:%02d:%02d.%02d%s %s[%s%s%s]%s", gray, t.Day(), t.Month(), t.Year()%100, t.Hour(), t.Minute(), t.Second(), t.Nanosecond()/1e7, reset, cyan, white, l.typeName, cyan, reset)
+	return fmt.Sprintf("%s%02d.%02d.%d %02d:%02d:%02d.%02d%s %s[%s%s%s]%s", grey, t.Day(), t.Month(), t.Year()%100, t.Hour(), t.Minute(), t.Second(), t.Nanosecond()/1e7, reset, cyan, white, l.typeName, cyan, reset)
 }
 
 func (l *Logger) getPrefixFile() string {
@@ -40,8 +40,8 @@ func (l *Logger) getPrefixFile() string {
 	return fmt.Sprintf("%02d.%02d.%d %02d:%02d:%02d.%02d [%s]", t.Day(), t.Month(), t.Year()%100, t.Hour(), t.Minute(), t.Second(), t.Nanosecond()/1e7, l.typeName)
 }
 
-func (l *Logger) Gray(format any) {
-	log.Printf("%s %s%s%s\n", l.getPrefixCli(), gray, format, reset)
+func (l *Logger) Grey(format any) {
+	log.Printf("%s %s%s%s\n", l.getPrefixCli(), grey, format, reset)
 	if fileLoggingEnabled {
 		fileLogger.Printf("%s %s", l.getPrefixFile(), format)
 	}

@@ -146,7 +146,7 @@ func (g *LoadTaskGroup) handleNewArrivalsResponse(res *NewArrivalsResponse) {
 
 		go writeProductStates()
 	} else {
-		g.logger.Gray("No new products loaded")
+		g.logger.Grey("No new products loaded")
 	}
 }
 
