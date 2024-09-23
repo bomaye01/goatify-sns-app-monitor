@@ -170,6 +170,23 @@ func (g *LoadTaskGroup) handleSkuCheckResponse(productData []ProductData) {
 			continue
 		}
 
+		// Dont ping already notified products
+		statesLoadMu.Lock()
+
+		alreadyNotified := false
+		for _, notifiedState := range productStates.Load.NotifiedProducts {
+			if notifiedState.Sku == product.Sku {
+				alreadyNotified = true
+				break
+			}
+		}
+		if alreadyNotified {
+			continue
+		}
+
+		statesLoadMu.Unlock()
+
+		// Notify
 		g.logger.Green(fmt.Sprintf("%s loaded. Matching keywords: %v", product.Sku, matchingKwdQueries))
 		g.notifyLoad(product, matchingKwdQueries)
 
