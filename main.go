@@ -215,7 +215,7 @@ func initTerminal() {
 	log.SetFlags(0)
 
 	configMu.RLock()
-	log.Printf("\033]0;SNS Monitor (%s) - linus - %s\007", VERSION, config.InstanceName)
+	log.Printf("\033]0;SNS Monitor (v%s) - linus - %s\007", VERSION, config.InstanceName)
 	configMu.RUnlock()
 }
 
