@@ -13,6 +13,10 @@ import (
 	"unsafe"
 )
 
+const (
+	VERSION = "0.3.1"
+)
+
 // Lock order as below. Before that, take the individual handler lock
 var configMu sync.RWMutex = sync.RWMutex{}
 var statesNormalMu sync.Mutex = sync.Mutex{}
@@ -113,7 +117,7 @@ func main() {
 
 	configMu.RLock()
 
-	mainLogger.White("Starting SNS monitor...")
+	mainLogger.White(fmt.Sprintf("Starting SNS monitor (Version %s)...", VERSION))
 
 	// Create task groups
 	statesNormalMu.Lock()
@@ -211,7 +215,7 @@ func initTerminal() {
 	log.SetFlags(0)
 
 	configMu.RLock()
-	log.Printf("\033]0;SNS Monitor - linus - %s\007", config.InstanceName)
+	log.Printf("\033]0;SNS Monitor (%s) - linus - %s\007", VERSION, config.InstanceName)
 	configMu.RUnlock()
 }
 
