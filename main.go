@@ -117,7 +117,7 @@ func main() {
 
 	configMu.RLock()
 
-	mainLogger.White(fmt.Sprintf("Starting SNS monitor (Version %s)...", VERSION))
+	mainLogger.White(fmt.Sprintf("Starting SNS monitor (v%s) ...", VERSION))
 
 	// Create task groups
 	statesNormalMu.Lock()
