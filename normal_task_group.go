@@ -9,7 +9,7 @@ import (
 
 const (
 	SKUS_BATCH_SIZE  = 30
-	UNLOAD_THRESHOLD = 50 // 100 requests required to unload product state
+	UNLOAD_THRESHOLD = 250 // 250 requests required to unload product state
 )
 
 type NormalTaskGroup struct {
