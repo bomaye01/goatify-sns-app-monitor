@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 
 	http "github.com/bogdanfinn/fhttp"
 )
@@ -306,8 +307,54 @@ func GetProductData(productNode ProductNode) ProductData {
 	}
 }
 
+func splitSize(size string) (string, string) {
+	i := 0
+	for i < len(size) && !unicode.IsDigit(rune(size[i])) {
+		i++
+	}
+
+	j := i
+	comma := false
+	// Only allow one comma
+	for j < len(size) && (unicode.IsDigit(rune(size[j])) || (!comma && (size[j] == '.' || size[j] == ','))) {
+		if size[j] == '.' || size[j] == ',' {
+			comma = true
+		}
+		j++
+	}
+
+	prefix := strings.TrimSpace(size[:i])
+	numericPart := strings.ReplaceAll(strings.TrimSpace(size[i:j]), ",", ".")
+
+	return prefix, numericPart
+}
+
 func sortAvailableSizes(sizes []AvailableSize) {
 	sort.Slice(sizes, func(i, j int) bool {
+		prefix1, num1 := splitSize(sizes[i].Name)
+		prefix2, num2 := splitSize(sizes[j].Name)
+
+		// For efficiency
+		if prefix1 != prefix2 {
+			return prefix1 < prefix2
+		}
+
+		// If both have numeric parts, compare them numerically
+		if num1 != "" && num2 != "" {
+			n1, _ := strconv.ParseFloat(num1, 64)
+			n2, _ := strconv.ParseFloat(num2, 64)
+			return n1 < n2
+		}
+
+		// If only one has a numeric part, the one with the numeric part comes first
+		if num1 != "" {
+			return true
+		}
+		if num2 != "" {
+			return false
+		}
+
+		// If neither has a numeric part, compare the remaining part lexicographically
 		return sizes[i].Name < sizes[j].Name
 	})
 }
