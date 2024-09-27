@@ -139,7 +139,7 @@ func (g *LoadTaskGroup) handleNewArrivalsResponse(res *NewArrivalsResponse) {
 	}
 
 	if numNewSkus := len(newSKUs); numNewSkus > 0 {
-		g.logger.Yellow(fmt.Sprintf("%d new products loaded. Requesting...", numNewSkus))
+		g.logger.Yellow(fmt.Sprintf("%d new products loaded.", numNewSkus))
 
 		for len(newSKUs) > SKUS_BATCH_SIZE {
 			nextSKUs := newSKUs[:SKUS_BATCH_SIZE]
@@ -179,7 +179,7 @@ func (g *LoadTaskGroup) loadCheckSkus(skus []SkuQuery) {
 	timeout := config.LoadTask.Timeout
 	configMu.RUnlock()
 
-	for range LOAD_CHECK_RETRIES {
+	for i := range LOAD_CHECK_RETRIES {
 		skusStr = []string{}
 		for _, sku := range skus {
 			skusStr = append(skusStr, string(sku))
@@ -188,6 +188,8 @@ func (g *LoadTaskGroup) loadCheckSkus(skus []SkuQuery) {
 		if len(skusStr) == 0 {
 			break
 		}
+
+		g.logger.Yellow(fmt.Sprintf("Requesting new products: %d (%d/%d)", len(skusStr), i+1, LOAD_CHECK_RETRIES))
 
 		res, err := loadTask.getProductsBySku(skusStr)
 		if err != nil {
