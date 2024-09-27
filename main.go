@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	VERSION = "0.3.2"
+	VERSION = "0.3.3"
 )
 
 // Lock order as below. Before that, take the individual handler lock
