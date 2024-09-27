@@ -17,7 +17,6 @@ type NormalTaskGroup struct {
 	loadTaskGroup  *LoadTaskGroup
 	nextPosToCheck int
 	skuQueries     []SkuQuery
-	loadSkuQueries []SkuQuery
 	unloadCount    map[SkuQuery]int
 }
 
@@ -31,9 +30,8 @@ func NewNormalTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandl
 	}
 
 	normalTaskGroup := &NormalTaskGroup{
-		skuQueries:     skuQueries,
-		loadSkuQueries: []SkuQuery{},
-		unloadCount:    make(map[SkuQuery]int),
+		skuQueries:  skuQueries,
+		unloadCount: make(map[SkuQuery]int),
 	}
 
 	baseTaskGroup, err := NewBaseTaskGroup("NORMAL", proxyHandler, webhookHandler)
@@ -116,9 +114,6 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 
 	syncRequired := false
 
-	checkedLoadQueries := []SkuQuery{}
-	loadProductData := []ProductData{}
-
 	includedSkuQueries := make(map[SkuQuery]bool)
 	for _, productEdge := range res.Data.Site.Search.SearchProducts.Products.Edges {
 		pSkuQuery := MakeSkuQuery(productEdge.Node.Sku)
@@ -129,14 +124,9 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 		// Determine if sku is from normal or load
 		productData := GetProductData(productEdge.Node)
 
-		if g.isNormalSku(pSkuQuery) {
-			stateChanged := g.matchProductStates(productData)
-			if stateChanged {
-				syncRequired = true
-			}
-		} else if g.isLoadSku(pSkuQuery) {
-			checkedLoadQueries = append(checkedLoadQueries, pSkuQuery)
-			loadProductData = append(loadProductData, productData)
+		stateChanged := g.matchProductStates(productData)
+		if stateChanged {
+			syncRequired = true
 		}
 	}
 
@@ -170,14 +160,6 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 	if syncRequired {
 		go writeProductStates()
 	}
-
-	if len(loadProductData) == 0 {
-		return
-	}
-
-	go g.loadTaskGroup.handleSkuCheckResponse(loadProductData)
-
-	g.removeCheckedLoadSkuQueries(checkedLoadQueries)
 }
 
 func (g *NormalTaskGroup) matchProductStates(product ProductData) bool {
@@ -304,37 +286,14 @@ func (g *NormalTaskGroup) isNormalSku(sku SkuQuery) bool {
 	return false
 }
 
-func (g *NormalTaskGroup) isLoadSku(sku SkuQuery) bool {
-	for _, query := range g.loadSkuQueries {
-		if query == sku {
-			return true
-		}
-	}
-	return false
-}
-
 func (g *NormalTaskGroup) getNextSkus() []string {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
+	existing := make(map[SkuQuery]bool, len(g.skuQueries))
 	nextSkus := []string{}
 
-	existing := make(map[SkuQuery]bool, len(g.loadSkuQueries)+len(g.skuQueries))
-
-	// Always add load first to prevent starvation
-	for _, loadQuery := range g.loadSkuQueries {
-		if !existing[loadQuery] {
-			nextSkus = append(nextSkus, string(loadQuery))
-
-			existing[loadQuery] = true
-		}
-
-		if len(nextSkus) == SKUS_BATCH_SIZE {
-			return nextSkus
-		}
-	}
-
-	// Then add normal skus
+	// Add skus
 	pointer := g.nextPosToCheck
 
 	for len(nextSkus) < SKUS_BATCH_SIZE && len(g.skuQueries) > 0 {
@@ -363,47 +322,6 @@ func (g *NormalTaskGroup) getNextSkus() []string {
 	g.nextPosToCheck = pointer
 
 	return nextSkus
-}
-
-func (g *NormalTaskGroup) AddLoadSkuQueries(queries []SkuQuery) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	existing := make(map[SkuQuery]bool, len(g.loadSkuQueries))
-
-	for _, q := range g.loadSkuQueries {
-		existing[q] = true
-	}
-
-	for _, q := range queries {
-		if !existing[q] {
-			g.loadSkuQueries = append(g.loadSkuQueries, q)
-			existing[q] = true
-		}
-	}
-}
-
-func (g *NormalTaskGroup) removeCheckedLoadSkuQueries(checkedQueries []SkuQuery) bool {
-	uncheckedQueries := []SkuQuery{}
-
-	for _, query := range g.loadSkuQueries {
-		checked := false
-
-		for _, checkedQuery := range checkedQueries {
-			if query == checkedQuery {
-				checked = true
-				break
-			}
-		}
-
-		if !checked {
-			uncheckedQueries = append(uncheckedQueries, query)
-		}
-	}
-
-	g.loadSkuQueries = uncheckedQueries
-
-	return false
 }
 
 func (t *NormalTaskGroup) notifySize(productData ProductData) {

@@ -5,6 +5,11 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
+)
+
+const (
+	LOAD_CHECK_RETRIES = 15
 )
 
 type KwdQuery struct {
@@ -136,7 +141,16 @@ func (g *LoadTaskGroup) handleNewArrivalsResponse(res *NewArrivalsResponse) {
 	if numNewSkus := len(newSKUs); numNewSkus > 0 {
 		g.logger.Yellow(fmt.Sprintf("%d new products loaded. Requesting...", numNewSkus))
 
-		g.normalTaskGroup.AddLoadSkuQueries(newSKUs)
+		for len(newSKUs) > SKUS_BATCH_SIZE {
+			nextSKUs := newSKUs[:SKUS_BATCH_SIZE]
+
+			go g.loadCheckSkus(nextSKUs)
+
+			newSKUs = newSKUs[SKUS_BATCH_SIZE:]
+		}
+		if len(newSKUs) > 0 {
+			go g.loadCheckSkus(newSKUs)
+		}
 
 		g.lastKnownPid = res.Response.ProductNodes[0].Pid
 
@@ -147,6 +161,63 @@ func (g *LoadTaskGroup) handleNewArrivalsResponse(res *NewArrivalsResponse) {
 		go writeProductStates()
 	} else {
 		g.logger.Grey("No new products loaded")
+	}
+}
+
+func (g *LoadTaskGroup) loadCheckSkus(skus []SkuQuery) {
+	var skusStr []string
+
+	loadTask, err := NewLoadTask("Load Check", g)
+	if err != nil {
+		g.logger.Red(err)
+		return
+	}
+
+	includedSkuQueries := make(map[SkuQuery]bool)
+
+	configMu.RLock()
+	timeout := config.LoadTask.Timeout
+	configMu.RUnlock()
+
+	for range LOAD_CHECK_RETRIES {
+		skusStr = []string{}
+		for _, sku := range skus {
+			skusStr = append(skusStr, string(sku))
+		}
+
+		if len(skusStr) == 0 {
+			break
+		}
+
+		res, err := loadTask.getProductsBySku(skusStr)
+		if err != nil {
+			g.logger.Red(err)
+			return
+		}
+
+		loadProductData := []ProductData{}
+
+		for _, productEdge := range res.Data.Site.Search.SearchProducts.Products.Edges {
+			pSkuQuery := MakeSkuQuery(productEdge.Node.Sku)
+			includedSkuQueries[pSkuQuery] = true
+
+			productData := GetProductData(productEdge.Node)
+
+			loadProductData = append(loadProductData, productData)
+		}
+
+		go g.handleSkuCheckResponse(loadProductData)
+
+		uncheckedSkus := []SkuQuery{}
+		for _, sku := range skus {
+			if !includedSkuQueries[sku] {
+				uncheckedSkus = append(uncheckedSkus, sku)
+			}
+		}
+
+		skus = uncheckedSkus
+
+		time.Sleep(time.Millisecond * time.Duration(timeout))
 	}
 }
 
