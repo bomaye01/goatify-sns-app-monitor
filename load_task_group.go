@@ -251,11 +251,12 @@ func (g *LoadTaskGroup) handleSkuCheckResponse(productData []ProductData) {
 				break
 			}
 		}
+
+		statesLoadMu.Unlock()
+
 		if alreadyNotified {
 			continue
 		}
-
-		statesLoadMu.Unlock()
 
 		// Notify
 		g.logger.Green(fmt.Sprintf("%s loaded. Matching keywords: %v", product.Sku, matchingKwdQueries))
