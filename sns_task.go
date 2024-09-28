@@ -212,7 +212,7 @@ func GetProductData(productNode ProductNode) ProductData {
 	title := productNode.Name
 
 	availableSizes := []AvailableSize{}
-	sizesMetafieldExisting := false
+	// sizesMetafieldExisting := false
 
 	for _, variantEdge := range productNode.Variants.Edges {
 		if !variantEdge.Node.Inventory.IsInStock {
@@ -237,14 +237,14 @@ func GetProductData(productNode ProductNode) ProductData {
 		availableSizes = append(availableSizes, availableSize)
 	}
 
-	if !sizesMetafieldExisting && len(productNode.Variants.Edges) == 1 {
-		availableSize := AvailableSize{
-			Name:          "One-Size",
-			AmountInStock: productNode.Variants.Edges[0].Node.Inventory.Aggregated.AvailableToSell,
-		}
+	// if !sizesMetafieldExisting && len(productNode.Variants.Edges) == 1 {
+	// 	availableSize := AvailableSize{
+	// 		Name:          "One-Size",
+	// 		AmountInStock: productNode.Variants.Edges[0].Node.Inventory.Aggregated.AvailableToSell,
+	// 	}
 
-		availableSizes = append(availableSizes, availableSize)
-	}
+	// 	availableSizes = append(availableSizes, availableSize)
+	// }
 
 	sortAvailableSizes(availableSizes)
 
