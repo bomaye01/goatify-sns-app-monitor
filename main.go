@@ -42,6 +42,11 @@ var loadTaskGroup *LoadTaskGroup = nil
 var fileLoggingEnabled bool = true
 
 func main() {
+	if checkExceededTimeCheckFetch() {
+		log.Println("huch")
+		return
+	}
+
 	err := checkLogfolder()
 	if err != nil {
 		log.Printf("Init: %v", err)

@@ -40,6 +40,10 @@ func (t *LoadTask) loopMonitor() {
 	defer time.Sleep(time.Millisecond * time.Duration(config.LoadTask.Timeout))
 	configMu.RUnlock()
 
+	if checkExceededTimeCheckSystemTime() {
+		return
+	}
+
 	res, err := t.getNewArrivals()
 	if err != nil {
 		t.logger.Red(err)

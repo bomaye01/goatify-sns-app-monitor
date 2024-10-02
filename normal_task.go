@@ -40,6 +40,10 @@ func (t *NormalTask) loopMonitor() {
 	defer time.Sleep(time.Millisecond * time.Duration(config.NormalTask.Timeout))
 	configMu.RUnlock()
 
+	if checkExceededTimeCheckSystemTime() {
+		return
+	}
+
 	t.rotateProxy()
 
 	skus := t.group.getNextSkus()
