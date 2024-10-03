@@ -156,7 +156,7 @@ func (w *WebhookHandler) NotifyRestock(productData ProductData) {
 
 		extraField := discordwebhook.Field{
 			Name:   "Extra",
-			Value:  fmt.Sprintf("[**StockX**](https://stockx.com/search?s=%s)", productData.Sku),
+			Value:  fmt.Sprintf("[**StockX**](https://stockx.com/search?s=%s) | [App Link](https://applinks.sneakersnstuff.com/product/%s)", productData.Sku, productData.Sku),
 			Inline: false,
 		}
 		fields = append(fields, extraField)
@@ -260,7 +260,7 @@ func (w *WebhookHandler) NotifyPrice(productData ProductData, oldPrice string) {
 
 		extraField := discordwebhook.Field{
 			Name:   "Extra",
-			Value:  fmt.Sprintf("[**StockX**](https://stockx.com/search?s=%s)", productData.Sku),
+			Value:  fmt.Sprintf("[**StockX**](https://stockx.com/search?s=%s) | [App Link](https://applinks.sneakersnstuff.com/product/%s)", productData.Sku, productData.Sku),
 			Inline: false,
 		}
 		fields = append(fields, extraField)
@@ -355,7 +355,7 @@ func (w *WebhookHandler) NotifyAvailable(productData ProductData) {
 
 		extraField := discordwebhook.Field{
 			Name:   "Extra",
-			Value:  fmt.Sprintf("[**StockX**](https://stockx.com/search?s=%s)", productData.Sku),
+			Value:  fmt.Sprintf("[**StockX**](https://stockx.com/search?s=%s) | [App Link](https://applinks.sneakersnstuff.com/product/%s)", productData.Sku, productData.Sku),
 			Inline: false,
 		}
 		fields = append(fields, extraField)
@@ -474,7 +474,7 @@ func (w *WebhookHandler) NotifyLoad(productData ProductData, matchingKwdQueries 
 
 		extraField := discordwebhook.Field{
 			Name:   "Extra",
-			Value:  fmt.Sprintf("[**StockX**](https://stockx.com/search?s=%s)", productData.Sku),
+			Value:  fmt.Sprintf("[**StockX**](https://stockx.com/search?s=%s) | [App Link](https://applinks.sneakersnstuff.com/product/%s)", productData.Sku, productData.Sku),
 			Inline: false,
 		}
 		fields = append(fields, extraField)
