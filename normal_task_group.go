@@ -8,16 +8,18 @@ import (
 )
 
 const (
-	SKUS_BATCH_SIZE  = 30
-	UNLOAD_THRESHOLD = 250 // 250 consecutive requests required to unload product state
+	SKUS_BATCH_SIZE         = 30
+	UNLOAD_THRESHOLD        = 250 // 250 consecutive requests required to unload product state
+	RESET_VARIANT_THRESHOLD = 10  // 10 consecutive requests required to reset variants of product state
 )
 
 type NormalTaskGroup struct {
 	*BaseTaskGroup
-	loadTaskGroup  *LoadTaskGroup
-	nextPosToCheck int
-	skuQueries     []SkuQuery
-	unloadCount    map[SkuQuery]int
+	loadTaskGroup      *LoadTaskGroup
+	nextPosToCheck     int
+	skuQueries         []SkuQuery
+	unloadCount        map[SkuQuery]int
+	resetVariantsCount map[SkuQuery]int
 }
 
 func NewNormalTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandler, skuQueryStrings []string) (*NormalTaskGroup, error) {
@@ -30,8 +32,9 @@ func NewNormalTaskGroup(proxyHandler *ProxyHandler, webhookHandler *WebhookHandl
 	}
 
 	normalTaskGroup := &NormalTaskGroup{
-		skuQueries:  skuQueries,
-		unloadCount: make(map[SkuQuery]int),
+		skuQueries:         skuQueries,
+		unloadCount:        make(map[SkuQuery]int),
+		resetVariantsCount: make(map[SkuQuery]int),
 	}
 
 	baseTaskGroup, err := NewBaseTaskGroup("NORMAL", proxyHandler, webhookHandler)
@@ -133,7 +136,21 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 		// Determine if sku is from normal or load
 		productData := GetProductData(productEdge.Node)
 
-		stateChanged := g.matchProductStates(productData)
+		ignoreVariants := true
+		if len(productData.AvailableSizes) == 0 {
+			g.resetVariantsCount[pSkuQuery] += 1
+
+			if g.resetVariantsCount[pSkuQuery] == RESET_VARIANT_THRESHOLD {
+				ignoreVariants = false
+
+				g.resetVariantsCount[pSkuQuery] += 1
+			}
+		} else {
+			g.resetVariantsCount[pSkuQuery] = 0
+			ignoreVariants = false
+		}
+
+		stateChanged := g.matchProductStates(productData, ignoreVariants)
 		if stateChanged {
 			syncRequired = true
 		}
@@ -172,7 +189,7 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 	}
 }
 
-func (g *NormalTaskGroup) matchProductStates(product ProductData) bool {
+func (g *NormalTaskGroup) matchProductStates(product ProductData, ignoreVariants bool) bool {
 	statesNormalMu.Lock()
 	defer statesNormalMu.Unlock()
 
@@ -193,7 +210,7 @@ func (g *NormalTaskGroup) matchProductStates(product ProductData) bool {
 		if state.Sku == product.Sku {
 			productInStates = true
 
-			if !reflect.DeepEqual(state.AvailableSizes, product.AvailableSizes) {
+			if !ignoreVariants && !reflect.DeepEqual(state.AvailableSizes, product.AvailableSizes) {
 				stateChange = true
 
 				newAvailableSizes = getChangesToAvailable(state.AvailableSizes, product.AvailableSizes)

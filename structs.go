@@ -72,6 +72,6 @@ type ProductData struct {
 }
 
 type AvailableSize struct {
-	Name          string
-	AmountInStock int
+	Name          string `json:"Name"`
+	AmountInStock int    `json:"AmountInStock"`
 }
