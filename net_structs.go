@@ -158,8 +158,8 @@ type ProductNode struct {
 		Typename  string `json:"__typename"`
 	} `json:"inventory"`
 	Description string `json:"description"`
-	Variants    struct {
-		Edges []struct {
+	Variants    *struct {
+		Edges *[]struct {
 			Node struct {
 				EntityID int    `json:"entityId"`
 				ID       string `json:"id"`

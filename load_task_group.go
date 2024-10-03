@@ -121,7 +121,7 @@ func (g *LoadTaskGroup) RemoveKwdQuery(kwdStr string) {
 }
 
 func (g *LoadTaskGroup) handleNewArrivalsResponse(res *NewArrivalsResponse) {
-	if res == nil || len(res.Response.ProductNodes) == 0 || g.normalTaskGroup == nil {
+	if g.normalTaskGroup == nil || res == nil || len(res.Response.ProductNodes) == 0 {
 		return
 	}
 
@@ -197,9 +197,22 @@ func (g *LoadTaskGroup) loadCheckSkus(skus []SkuQuery) {
 			return
 		}
 
+		if res == nil || res.Data.Site.Search.SearchProducts.Products.Edges == nil {
+			continue
+		}
+
 		loadProductData := []ProductData{}
 
 		for _, productEdge := range res.Data.Site.Search.SearchProducts.Products.Edges {
+			if productEdge.Node.Variants == nil {
+				g.logger.Red(fmt.Sprintf("%s: Variants property nil. Skipping product edge...", productEdge.Node.Sku))
+				continue
+			}
+			if productEdge.Node.Variants.Edges == nil {
+				g.logger.Red(fmt.Sprintf("%s: Variants.Edges property nil. Skipping product edge...", productEdge.Node.Sku))
+				continue
+			}
+
 			pSkuQuery := MakeSkuQuery(productEdge.Node.Sku)
 			includedSkuQueries[pSkuQuery] = true
 

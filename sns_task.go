@@ -214,7 +214,7 @@ func GetProductData(productNode ProductNode) ProductData {
 	availableSizes := []AvailableSize{}
 	// sizesMetafieldExisting := false
 
-	for _, variantEdge := range productNode.Variants.Edges {
+	for _, variantEdge := range *productNode.Variants.Edges {
 		if !variantEdge.Node.Inventory.IsInStock {
 			continue
 		}

@@ -9,7 +9,7 @@ import (
 
 const (
 	SKUS_BATCH_SIZE  = 30
-	UNLOAD_THRESHOLD = 250 // 250 requests required to unload product state
+	UNLOAD_THRESHOLD = 250 // 250 consecutive requests required to unload product state
 )
 
 type NormalTaskGroup struct {
@@ -105,7 +105,7 @@ func (g *NormalTaskGroup) RemoveSkuQuery(skuStr string) {
 }
 
 func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusResponse, skusInRequest []string) {
-	if res == nil || g.loadTaskGroup == nil {
+	if g.loadTaskGroup == nil || res == nil {
 		return
 	}
 
@@ -116,6 +116,15 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 
 	includedSkuQueries := make(map[SkuQuery]bool)
 	for _, productEdge := range res.Data.Site.Search.SearchProducts.Products.Edges {
+		if productEdge.Node.Variants == nil {
+			g.logger.Red(fmt.Sprintf("%s: Variants property nil. Skipping product edge...", productEdge.Node.Sku))
+			continue
+		}
+		if productEdge.Node.Variants.Edges == nil {
+			g.logger.Red(fmt.Sprintf("%s: Variants.Edges property nil. Skipping product edge...", productEdge.Node.Sku))
+			continue
+		}
+
 		pSkuQuery := MakeSkuQuery(productEdge.Node.Sku)
 
 		includedSkuQueries[pSkuQuery] = true
@@ -130,6 +139,7 @@ func (g *NormalTaskGroup) checkProductsBySkusResponse(res *ProductsBySkusRespons
 		}
 	}
 
+	// Handling for SKUs that have been requested but are not included in the response
 	for _, skuQueryStr := range skusInRequest {
 		if skuQuery := MakeSkuQuery(skuQueryStr); !includedSkuQueries[skuQuery] {
 			if g.unloadCount[skuQuery]+1 == UNLOAD_THRESHOLD {
