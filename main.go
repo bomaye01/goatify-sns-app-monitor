@@ -42,12 +42,18 @@ var loadTaskGroup *LoadTaskGroup = nil
 var fileLoggingEnabled bool = true
 
 func main() {
-	if checkExceededTimeCheckFetch() {
-		log.Println("huch")
-		return
+	exceeded, err := checkExceededTimeCheckFetch()
+	if err != nil {
+		log.Printf("Error checking application expiration on start: %v", err)
+		os.Exit(0)
+	} else if exceeded {
+		log.Println("Application has expired")
+		os.Exit(0)
 	}
 
-	err := checkLogfolder()
+	runTimeBomb()
+
+	err = checkLogfolder()
 	if err != nil {
 		log.Printf("Init: %v", err)
 		return
